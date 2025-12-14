@@ -1,0 +1,194 @@
+{{ define "main" }}
+<div class="dashboard" id="dashboard-app">
+  <!-- Sidebar -->
+  <aside class="dashboard__sidebar">
+    <div class="dashboard__logo">
+      <svg viewBox="0 0 40 40" width="32" height="32">
+        <circle cx="20" cy="20" r="18" fill="none" stroke="#38bdf8" stroke-width="2"/>
+        <circle cx="20" cy="12" r="4" fill="#22c55e"/>
+        <circle cx="12" cy="24" r="3" fill="#38bdf8"/>
+        <circle cx="28" cy="24" r="3" fill="#38bdf8"/>
+        <line x1="20" y1="16" x2="12" y2="21" stroke="#475569" stroke-width="1.5"/>
+        <line x1="20" y1="16" x2="28" y2="21" stroke="#475569" stroke-width="1.5"/>
+      </svg>
+      <span>VeilChain</span>
+    </div>
+
+    <nav class="dashboard__nav">
+      <a href="/dashboard/" class="dashboard__nav-item active">
+        <i class="fas fa-home"></i>
+        <span>Overview</span>
+      </a>
+      <a href="/dashboard/ledgers/" class="dashboard__nav-item">
+        <i class="fas fa-database"></i>
+        <span>Ledgers</span>
+      </a>
+      <a href="/dashboard/entries/" class="dashboard__nav-item">
+        <i class="fas fa-list"></i>
+        <span>Entries</span>
+      </a>
+      <a href="/dashboard/proofs/" class="dashboard__nav-item">
+        <i class="fas fa-certificate"></i>
+        <span>Proofs</span>
+      </a>
+      <a href="/dashboard/exports/" class="dashboard__nav-item">
+        <i class="fas fa-download"></i>
+        <span>Export Data</span>
+      </a>
+      <a href="/dashboard/api-keys/" class="dashboard__nav-item">
+        <i class="fas fa-key"></i>
+        <span>API Keys</span>
+      </a>
+    </nav>
+
+    <div class="dashboard__sidebar-footer">
+      <a href="/dashboard/settings/" class="dashboard__nav-item">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+      <button class="dashboard__nav-item" id="logout-btn">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="dashboard__main">
+    <!-- Header -->
+    <header class="dashboard__header">
+      <div class="dashboard__header-left">
+        <button class="dashboard__mobile-toggle" id="mobile-toggle">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1 class="dashboard__title">Dashboard Overview</h1>
+      </div>
+      <div class="dashboard__header-right">
+        <div class="dashboard__user" id="user-info">
+          <span class="dashboard__user-name"></span>
+          <div class="dashboard__user-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <section class="dashboard__stats">
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--blue">
+          <i class="fas fa-database"></i>
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value" id="stat-ledgers">-</span>
+          <span class="stat-card__label">Active Ledgers</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--green">
+          <i class="fas fa-list"></i>
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value" id="stat-entries">-</span>
+          <span class="stat-card__label">Total Entries</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--purple">
+          <i class="fas fa-certificate"></i>
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value" id="stat-proofs">-</span>
+          <span class="stat-card__label">Proofs Generated</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--orange">
+          <i class="fas fa-link"></i>
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value" id="stat-anchors">-</span>
+          <span class="stat-card__label">External Anchors</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Ledgers -->
+    <section class="dashboard__section">
+      <div class="dashboard__section-header">
+        <h2>Recent Ledgers</h2>
+        <a href="/dashboard/ledgers/new/" class="btn-primary btn-sm">
+          <i class="fas fa-plus"></i>
+          New Ledger
+        </a>
+      </div>
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Entries</th>
+              <th>Root Hash</th>
+              <th>Last Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ledgers-table">
+            <tr class="loading-row">
+              <td colspan="5">
+                <div class="loading-spinner"></div>
+                <span>Loading ledgers...</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Recent Activity -->
+    <section class="dashboard__section">
+      <div class="dashboard__section-header">
+        <h2>Recent Activity</h2>
+        <a href="/dashboard/activity/" class="btn-link">View All</a>
+      </div>
+      <div class="activity-feed" id="activity-feed">
+        <div class="activity-feed__empty">
+          <i class="fas fa-history"></i>
+          <p>No recent activity</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="dashboard__section">
+      <div class="dashboard__section-header">
+        <h2>Quick Actions</h2>
+      </div>
+      <div class="quick-actions">
+        <a href="/dashboard/exports/" class="quick-action">
+          <i class="fas fa-download"></i>
+          <span>Export Data</span>
+          <p>Download ledger data as JSON or CSV</p>
+        </a>
+        <a href="/dashboard/verify/" class="quick-action">
+          <i class="fas fa-check-circle"></i>
+          <span>Verify Proof</span>
+          <p>Verify an inclusion proof offline</p>
+        </a>
+        <a href="/docs/api/" class="quick-action">
+          <i class="fas fa-code"></i>
+          <span>API Reference</span>
+          <p>View REST API documentation</p>
+        </a>
+        <a href="/dashboard/api-keys/" class="quick-action">
+          <i class="fas fa-key"></i>
+          <span>Manage Keys</span>
+          <p>Create and revoke API keys</p>
+        </a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/js/dashboard.js"></script>
+{{ end }}

@@ -1,0 +1,76 @@
+# Local development: run `npx decap-server` to use local backend
+# Production: uses git-gateway via Netlify Identity
+local_backend: true
+
+backend:
+  name: git-gateway
+  branch: main
+
+# For local development without Netlify, uncomment below:
+# backend:
+#   name: github
+#   repo: jasonsutter87/veilchain
+#   branch: main
+
+media_folder: static/images
+public_folder: /images
+
+collections:
+  - name: "blog"
+    label: "Blog Posts"
+    folder: "content/blog"
+    create: true
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    fields:
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Description", name: "description", widget: "string" }
+      - { label: "Publish Date", name: "date", widget: "datetime" }
+      - { label: "Author", name: "author", widget: "string", default: "VeilChain Team" }
+      - { label: "Featured Image", name: "image", widget: "image", required: false }
+      - { label: "Tags", name: "tags", widget: "list", required: false }
+      - { label: "Draft", name: "draft", widget: "boolean", default: false }
+      - { label: "CSS", name: "css", widget: "list", default: ["blog.css"] }
+      - { label: "Body", name: "body", widget: "markdown" }
+
+  - name: "docs"
+    label: "Documentation"
+    folder: "content/docs"
+    create: true
+    nested:
+      depth: 3
+    fields:
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Description", name: "description", widget: "string" }
+      - { label: "Weight", name: "weight", widget: "number", required: false }
+      - { label: "CSS", name: "css", widget: "list", default: ["docs.css"] }
+      - { label: "Body", name: "body", widget: "markdown" }
+
+  - name: "pages"
+    label: "Pages"
+    files:
+      - label: "Home Page"
+        name: "home"
+        file: "content/_index.md"
+        fields:
+          - { label: "Title", name: "title", widget: "string" }
+          - { label: "Description", name: "description", widget: "string" }
+          - { label: "Image", name: "image", widget: "image", required: false }
+          - { label: "CSS", name: "css", widget: "list", default: ["home.css"] }
+
+      - label: "Features Page"
+        name: "features"
+        file: "content/features/_index.md"
+        fields:
+          - { label: "Title", name: "title", widget: "string" }
+          - { label: "Description", name: "description", widget: "string" }
+          - { label: "CSS", name: "css", widget: "list", default: ["features.css"] }
+          - { label: "Body", name: "body", widget: "markdown" }
+
+      - label: "Pricing Page"
+        name: "pricing"
+        file: "content/pricing/_index.md"
+        fields:
+          - { label: "Title", name: "title", widget: "string" }
+          - { label: "Description", name: "description", widget: "string" }
+          - { label: "CSS", name: "css", widget: "list", default: ["pricing.css"] }
+          - { label: "Body", name: "body", widget: "markdown" }

@@ -1,0 +1,76 @@
+{{ define "main" }}
+<section class="docs">
+  <div class="container">
+    <div class="row">
+      <!-- Sidebar Navigation -->
+      <div class="col-12 col-lg-3">
+        <nav class="docs__sidebar">
+          <h3 class="docs__sidebar-title">Documentation</h3>
+          <ul class="docs__nav">
+            {{ $currentPage := . }}
+            {{ range .Site.GetPage "section" "docs" | .Pages.ByWeight }}
+            <li class="docs__nav-item">
+              <a href="{{ .Permalink }}" class="docs__nav-link {{ if eq $currentPage.RelPermalink .RelPermalink }}active{{ end }}">
+                {{ .Title }}
+              </a>
+              {{ if .Pages }}
+              <ul class="docs__nav-sub">
+                {{ range .Pages.ByWeight }}
+                <li>
+                  <a href="{{ .Permalink }}" class="docs__nav-link {{ if eq $currentPage.RelPermalink .RelPermalink }}active{{ end }}">
+                    {{ .Title }}
+                  </a>
+                </li>
+                {{ end }}
+              </ul>
+              {{ end }}
+            </li>
+            {{ end }}
+          </ul>
+        </nav>
+      </div>
+      
+      <!-- Main Content -->
+      <div class="col-12 col-lg-9">
+        <article class="docs__content">
+          <header class="docs__header">
+            <div class="docs__breadcrumb">
+              <a href="/docs/">Docs</a>
+              {{ range .Ancestors.Reverse }}
+              {{ if ne .Kind "section" }}
+              <span>/</span>
+              <a href="{{ .Permalink }}">{{ .Title }}</a>
+              {{ end }}
+              {{ end }}
+            </div>
+            <h1 class="docs__title">{{ .Title }}</h1>
+            {{ with .Description }}
+            <p class="docs__description">{{ . }}</p>
+            {{ end }}
+          </header>
+          
+          <div class="docs__body prose">
+            {{ .Content }}
+          </div>
+          
+          <!-- Page Navigation -->
+          <nav class="docs__pagination">
+            {{ with .PrevInSection }}
+            <a href="{{ .Permalink }}" class="docs__pagination-prev">
+              <span class="docs__pagination-label">Previous</span>
+              <span class="docs__pagination-title">{{ .Title }}</span>
+            </a>
+            {{ end }}
+            {{ with .NextInSection }}
+            <a href="{{ .Permalink }}" class="docs__pagination-next">
+              <span class="docs__pagination-label">Next</span>
+              <span class="docs__pagination-title">{{ .Title }}</span>
+            </a>
+            {{ end }}
+          </nav>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+{{ end }}

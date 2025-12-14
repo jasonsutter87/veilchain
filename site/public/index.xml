@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>VeilChain - Bitcoin-grade Immutability Without the Blockchain</title><link>https://veilchain.io/</link><description>Recent content on VeilChain - Bitcoin-grade Immutability Without the Blockchain</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Sat, 14 Dec 2024 10:00:00 +0000</lastBuildDate><atom:link href="https://veilchain.io/index.xml" rel="self" type="application/rss+xml"/><item><title>Introducing VeilChain: Bitcoin-grade Immutability Without the Blockchain</title><link>https://veilchain.io/blog/2024-12-14-introducing-veilchain/</link><pubDate>Sat, 14 Dec 2024 10:00:00 +0000</pubDate><guid>https://veilchain.io/blog/2024-12-14-introducing-veilchain/</guid><description>&lt;p>We&amp;rsquo;re excited to announce the launch of VeilChain, an open-source Merkle tree ledger service designed to bring Bitcoin-grade data immutability to your applications without the overhead of running a full blockchain.&lt;/p>
+&lt;h2 id="the-problem">The Problem&lt;/h2>
+&lt;p>Modern applications need verifiable data integrity. Whether you&amp;rsquo;re building audit logs for compliance, document notarization systems, or supply chain tracking, you need to prove that data hasn&amp;rsquo;t been tampered with.&lt;/p>
+&lt;p>Blockchain seems like the obvious solution, but it comes with significant downsides:&lt;/p></description></item><item><title>Accessibility Statement | Policies</title><link>https://veilchain.io/accessibility-statement/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://veilchain.io/accessibility-statement/</guid><description/></item><item><title>Export Data</title><link>https://veilchain.io/dashboard/exports/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://veilchain.io/dashboard/exports/</guid><description/></item><item><title>Login</title><link>https://veilchain.io/dashboard/login/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://veilchain.io/dashboard/login/</guid><description/></item><item><title>Privacy Policy | Policies</title><link>https://veilchain.io/privacy-policy/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://veilchain.io/privacy-policy/</guid><description>&lt;section id="inner-page-hero-section">
+ &lt;div class="site-container-1340">
+ &lt;div class="row">
+ &lt;div class="col-12">
+ &lt;h4>Policies&lt;/h4>
+ &lt;h1>Privacy Policy&lt;/h1>
+ &lt;/div>
+ &lt;/div>
+ &lt;/div>
+&lt;/section>
+
+
+&lt;section id="policies-main-section">
+ &lt;div class="site-container-1340">
+ &lt;div class="row justify-content-center">
+ &lt;div class="col-12 col-lg-9">
+ &lt;div align="left">
+ &lt;p>InterWest Insurance Services, LLC is committed to protecting your privacy and developing technology that gives you the most powerful and safe online experience. This Statement of Privacy applies to InterWest Insurance Services, LLC site and governs data collection and usage. By using InterWest Insurance Services, LLC site, you consent to the data practices described in this statement.&lt;/p>
+ 
+ &lt;p class="mb-0">&lt;span class="SubHead">Collection of your Personal Information&lt;/span>&lt;/p>
+ 
+ &lt;p>InterWest Insurance Services, LLC collects personally identifiable information, such as your email address, name, home or work address or telephone number. InterWest Insurance Services, LLC also collects anonymous demographic information, which is not unique to you, such as your ZIP code, age, gender, preferences, interests and favorites.&lt;/p></description></item><item><title>Terms of Use | Policies</title><link>https://veilchain.io/terms-of-use/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://veilchain.io/terms-of-use/</guid><description>&lt;section id="inner-page-hero-section">
+ &lt;div class="site-container-1340">
+ &lt;div class="row">
+ &lt;div class="col-12">
+ &lt;h4>Policies&lt;/h4>
+ &lt;h1>Terms of Use&lt;/h1>
+ &lt;/div>
+ &lt;/div>
+ &lt;/div>
+&lt;/section>
+
+
+&lt;section id="policies-main-section">
+ &lt;div class="site-container-1340">
+ &lt;div class="row justify-content-center">
+ &lt;div class="col-12 col-lg-9">
+ &lt;div align="left">
+ &lt;p>&lt;span class="SubHead">AGREEMENT BETWEEN USER AND InterWest Insurance Services, LLC&lt;/span>&lt;/p>
+ 
+ &lt;p>InterWest Insurance Services, LLC Web Site is comprised of various Web pages operated by InterWest Insurance Services, LLC.&lt;/p>
+ 
+ &lt;p>InterWest Insurance Services, LLC Web Site is offered to you conditioned on your acceptance without modification of the terms, conditions, and notices contained herein. Your use of InterWest Insurance Services, LLC Web Site constitutes your agreement to all such terms, conditions, and notices.&lt;/p></description></item></channel></rss>

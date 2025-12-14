@@ -1,0 +1,239 @@
+{{ define "main" }}
+<!-- Features Hero -->
+<section class="features-hero">
+  <div class="container">
+    <div class="features-hero__content">
+      <h1 class="features-hero__title">
+        Enterprise-grade <span class="highlight">data integrity</span>
+      </h1>
+      <p class="features-hero__subtitle">
+        VeilChain provides cryptographic guarantees for your data without the complexity of blockchain. Built on battle-tested Merkle tree technology.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- Core Features -->
+<section class="features-section">
+  <div class="container">
+    <div class="features-section__header">
+      <span class="features-section__label">Core Features</span>
+      <h2 class="features-section__title">Everything you need for tamper-proof data</h2>
+    </div>
+    
+    <div class="features-grid">
+      <div class="feature-detail">
+        <div class="feature-detail__icon">
+          <i class="fas fa-lock"></i>
+        </div>
+        <div class="feature-detail__content">
+          <h3>Append-Only Storage</h3>
+          <p>Data can never be modified or deleted once added. Every entry is cryptographically chained to the previous entries, making tampering mathematically detectable.</p>
+          <ul>
+            <li>Immutable by design - no backdoors</li>
+            <li>Cryptographic chaining prevents reordering</li>
+            <li>Position-binding prevents insertion attacks</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="feature-detail">
+        <div class="feature-detail__icon">
+          <i class="fas fa-certificate"></i>
+        </div>
+        <div class="feature-detail__content">
+          <h3>Cryptographic Proofs</h3>
+          <p>Generate compact O(log n) proofs that any entry exists in the ledger. Proofs can be verified offline, anywhere, by anyone - no need to trust VeilChain.</p>
+          <ul>
+            <li>Logarithmic proof size (efficient even at scale)</li>
+            <li>Offline verification capability</li>
+            <li>Third-party verifiable without API access</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="feature-detail">
+        <div class="feature-detail__icon">
+          <i class="fab fa-bitcoin"></i>
+        </div>
+        <div class="feature-detail__content">
+          <h3>External Anchoring</h3>
+          <p>Publish root hashes to Bitcoin, Ethereum, or Certificate Transparency logs. Create irrefutable proof of your data's existence at a specific point in time.</p>
+          <ul>
+            <li>Bitcoin anchoring for maximum decentralization</li>
+            <li>Ethereum smart contract integration</li>
+            <li>RFC 6962 CT log compatibility</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="feature-detail">
+        <div class="feature-detail__icon">
+          <i class="fab fa-docker"></i>
+        </div>
+        <div class="feature-detail__content">
+          <h3>Self-Hostable</h3>
+          <p>Run VeilChain on your own infrastructure. Full control over your data with no vendor lock-in. Deploy with Docker in minutes.</p>
+          <ul>
+            <li>Single Docker container deployment</li>
+            <li>PostgreSQL or SQLite storage backends</li>
+            <li>No external dependencies required</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="feature-detail">
+        <div class="feature-detail__icon">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <div class="feature-detail__content">
+          <h3>Lightning Fast</h3>
+          <p>No mining, no consensus delays. Append entries instantly with immediate proof generation. Verification takes less than 10ms regardless of ledger size.</p>
+          <ul>
+            <li>Sub-millisecond append operations</li>
+            <li>Instant proof generation</li>
+            <li>O(log n) verification time</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="feature-detail">
+        <div class="feature-detail__icon">
+          <i class="fas fa-code"></i>
+        </div>
+        <div class="feature-detail__content">
+          <h3>Developer Friendly</h3>
+          <p>TypeScript SDK with full type safety. REST API with OpenAPI documentation. Integrate in minutes with any tech stack.</p>
+          <ul>
+            <li>TypeScript/JavaScript SDK</li>
+            <li>REST API with JSON responses</li>
+            <li>Webhook support for real-time events</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Security Features -->
+<section class="features-section features-section--dark">
+  <div class="container">
+    <div class="features-section__header">
+      <span class="features-section__label features-section__label--light">Security</span>
+      <h2 class="features-section__title features-section__title--light">Built for security-critical applications</h2>
+    </div>
+    
+    <div class="security-grid">
+      <div class="security-item">
+        <i class="fas fa-shield-alt"></i>
+        <h4>SHA-256 Hashing</h4>
+        <p>Same algorithm that secures Bitcoin and millions in cryptocurrency</p>
+      </div>
+      <div class="security-item">
+        <i class="fas fa-key"></i>
+        <h4>API Key Auth</h4>
+        <p>Scoped API keys with granular permissions per ledger</p>
+      </div>
+      <div class="security-item">
+        <i class="fas fa-lock"></i>
+        <h4>TLS Encryption</h4>
+        <p>All data encrypted in transit with TLS 1.3</p>
+      </div>
+      <div class="security-item">
+        <i class="fas fa-user-shield"></i>
+        <h4>SOC2 Ready</h4>
+        <p>Designed for compliance with SOC2, HIPAA, and GDPR</p>
+      </div>
+      <div class="security-item">
+        <i class="fas fa-history"></i>
+        <h4>Audit Trail</h4>
+        <p>Complete API access logs for security monitoring</p>
+      </div>
+      <div class="security-item">
+        <i class="fas fa-fingerprint"></i>
+        <h4>Idempotency</h4>
+        <p>Request deduplication prevents accidental double-writes</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Comparison -->
+<section class="features-section">
+  <div class="container">
+    <div class="features-section__header">
+      <span class="features-section__label">Comparison</span>
+      <h2 class="features-section__title">VeilChain vs Blockchain</h2>
+    </div>
+    
+    <div class="comparison-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>VeilChain</th>
+            <th>Public Blockchain</th>
+            <th>Private Blockchain</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Write Latency</td>
+            <td class="highlight-cell"><i class="fas fa-check"></i> ~1ms</td>
+            <td>10+ minutes</td>
+            <td>1-5 seconds</td>
+          </tr>
+          <tr>
+            <td>Proof Size</td>
+            <td class="highlight-cell"><i class="fas fa-check"></i> O(log n)</td>
+            <td>O(log n)</td>
+            <td>O(log n)</td>
+          </tr>
+          <tr>
+            <td>External Verification</td>
+            <td class="highlight-cell"><i class="fas fa-check"></i> Yes + anchoring</td>
+            <td>Yes</td>
+            <td>No</td>
+          </tr>
+          <tr>
+            <td>Token/Gas Required</td>
+            <td class="highlight-cell"><i class="fas fa-check"></i> No</td>
+            <td>Yes</td>
+            <td>Sometimes</td>
+          </tr>
+          <tr>
+            <td>Self-Hostable</td>
+            <td class="highlight-cell"><i class="fas fa-check"></i> Yes</td>
+            <td>Complex</td>
+            <td>Yes</td>
+          </tr>
+          <tr>
+            <td>Operational Overhead</td>
+            <td class="highlight-cell"><i class="fas fa-check"></i> Minimal</td>
+            <td>High</td>
+            <td>Medium</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="features-cta">
+  <div class="container">
+    <h2>Ready to build tamper-proof applications?</h2>
+    <p>Start with our free tier or deploy VeilChain on your own infrastructure.</p>
+    <div class="features-cta__actions">
+      <a href="/docs/quickstart/" class="btn-primary">
+        <i class="fas fa-rocket"></i>
+        Get Started
+      </a>
+      <a href="/pricing/" class="btn-secondary">
+        <i class="fas fa-tags"></i>
+        View Pricing
+      </a>
+    </div>
+  </div>
+</section>
+{{ end }}

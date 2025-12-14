@@ -1,0 +1,15 @@
+{{/* Accessible footer with proper contrast */}}
+<div class="container py-5">
+  <div class="row">
+    {{/* Company info */}}
+    <div class="col-12 col-md-6 mb-4 mb-md-0">
+      <h4 class="fw-bold mb-3">{{ .Site.Title }}</h4>
+      {{/* Changed from text-gray-400 to text-gray-300 for WCAG AA compliance (4.5:1 contrast) */}}
+      <p class="text-gray-300 mb-0">{{ .Site.Params.companyName | default "Your Company" }}</p>
+    </div>
+    {{/* Copyright */}}
+    <div class="col-12 col-md-6 md:text-right">
+      <p class="text-gray-300 mb-0">&copy; {{ now.Year }} {{ .Site.Params.companyName | default "Your Company" }}. All rights reserved.</p>
+    </div>
+  </div>
+</div>

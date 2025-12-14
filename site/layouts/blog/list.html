@@ -1,0 +1,65 @@
+{{ define "main" }}
+<section class="blog">
+  <div class="container">
+    <header class="blog__header">
+      <h1 class="blog__title">{{ .Title | default "Blog" }}</h1>
+      <p class="blog__subtitle">
+        {{ .Description | default "Product updates, engineering insights, and announcements from the VeilChain team." }}
+      </p>
+    </header>
+    
+    {{ if .Pages }}
+    <div class="blog__grid">
+      {{ range .Pages.ByDate.Reverse }}
+      {{ if not .Draft }}
+      <article class="blog-card">
+        <div class="blog-card__image {{ if not .Params.image }}blog-card__image--placeholder{{ end }}">
+          {{ with .Params.image }}
+          <img src="{{ . }}" alt="{{ $.Title }}">
+          {{ else }}
+          <i class="fas fa-link"></i>
+          {{ end }}
+        </div>
+        <div class="blog-card__content">
+          <div class="blog-card__meta">
+            <span class="blog-card__date">
+              <i class="far fa-calendar"></i>
+              {{ .Date.Format "Jan 2, 2006" }}
+            </span>
+            {{ with .Params.author }}
+            <span class="blog-card__author">
+              <i class="far fa-user"></i>
+              {{ . }}
+            </span>
+            {{ end }}
+          </div>
+          <h2 class="blog-card__title">
+            <a href="{{ .Permalink }}">{{ .Title }}</a>
+          </h2>
+          <p class="blog-card__excerpt">
+            {{ .Description | default (.Summary | truncate 150) }}
+          </p>
+          {{ with .Params.tags }}
+          <div class="blog-card__tags">
+            {{ range first 3 . }}
+            <a href="{{ "/tags/" | relURL }}{{ . | urlize }}" class="blog-card__tag">{{ . }}</a>
+            {{ end }}
+          </div>
+          {{ end }}
+          <a href="{{ .Permalink }}" class="blog-card__read-more">
+            Read more <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </article>
+      {{ end }}
+      {{ end }}
+    </div>
+    {{ else }}
+    <div class="blog__empty">
+      <h3>No posts yet</h3>
+      <p>Check back soon for updates from the VeilChain team.</p>
+    </div>
+    {{ end }}
+  </div>
+</section>
+{{ end }}

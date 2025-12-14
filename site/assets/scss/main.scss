@@ -1,0 +1,289 @@
+// ==========================================================================
+// MAIN SCSS ENTRY POINT
+//
+// This file combines:
+// 1. Your SCSS variables and mixins
+// 2. Tailwind's base/components/utilities
+// 3. Your custom styles with full nesting power
+// ==========================================================================
+
+// SCSS imports MUST come first (before @tailwind)
+@use 'shared/variables' as *;
+@use 'shared/mixins' as *;
+
+// Tailwind layers - processed by PostCSS after Sass compiles
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// ==========================================================================
+// GLOBAL ACCESSIBILITY STYLES
+// ==========================================================================
+
+@layer base {
+  // Focus styles for keyboard navigation
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2;
+  }
+
+  // Remove default focus outline since we're using ring
+  *:focus {
+    outline: none;
+  }
+
+  // Screen reader only - visible when focused
+  .sr-only {
+    @include visually-hidden;
+  }
+}
+
+// ==========================================================================
+// BOOTSTRAP COMPATIBILITY LAYER
+// Your content team can keep using Bootstrap class names.
+// ==========================================================================
+
+@layer components {
+  // Containers
+  .container {
+    @apply w-full mx-auto px-4;
+    max-width: 1140px;
+  }
+
+  .container-fluid {
+    @apply w-full mx-auto px-4;
+  }
+
+  // Grid system - Row
+  .row {
+    @apply flex flex-wrap -mx-3;
+
+    > * {
+      @apply px-3;
+    }
+  }
+
+  // Columns - using SCSS loop for cleaner code!
+  @for $i from 1 through 12 {
+    .col-#{$i} {
+      width: percentage(calc($i / 12));
+    }
+
+    .col-sm-#{$i} {
+      @apply w-full;
+      @include sm {
+        width: percentage(calc($i / 12));
+      }
+    }
+
+    .col-md-#{$i} {
+      @apply w-full;
+      @include md {
+        width: percentage(calc($i / 12));
+      }
+    }
+
+    .col-lg-#{$i} {
+      @apply w-full;
+      @include lg {
+        width: percentage(calc($i / 12));
+      }
+    }
+
+    .col-xl-#{$i} {
+      @apply w-full;
+      @include xl {
+        width: percentage(calc($i / 12));
+      }
+    }
+  }
+
+  .col-12 { width: 100%; }
+  .col-auto { @apply flex-none w-auto; }
+
+  // Buttons with your SCSS mixins
+  .btn {
+    @include btn-base;
+  }
+
+  .btn-primary {
+    @include btn-base;
+    @include btn-variant($primary);
+  }
+
+  .btn-secondary {
+    @include btn-base;
+    @include btn-variant($secondary);
+  }
+
+  .btn-success {
+    @include btn-base;
+    @include btn-variant($success);
+  }
+
+  .btn-danger {
+    @include btn-base;
+    @include btn-variant($danger);
+  }
+
+  // Display utilities
+  .d-none { display: none; }
+  .d-block { display: block; }
+  .d-flex { display: flex; }
+  .d-inline { display: inline; }
+  .d-inline-block { display: inline-block; }
+  .d-grid { display: grid; }
+
+  // Responsive display
+  .d-sm-none { @include sm { display: none; } }
+  .d-sm-block { @include sm { display: block; } }
+  .d-sm-flex { @include sm { display: flex; } }
+  .d-md-none { @include md { display: none; } }
+  .d-md-block { @include md { display: block; } }
+  .d-md-flex { @include md { display: flex; } }
+  .d-lg-none { @include lg { display: none; } }
+  .d-lg-block { @include lg { display: block; } }
+  .d-lg-flex { @include lg { display: flex; } }
+
+  // Flexbox utilities
+  .justify-content-start { justify-content: flex-start; }
+  .justify-content-end { justify-content: flex-end; }
+  .justify-content-center { justify-content: center; }
+  .justify-content-between { justify-content: space-between; }
+  .justify-content-around { justify-content: space-around; }
+
+  .align-items-start { align-items: flex-start; }
+  .align-items-end { align-items: flex-end; }
+  .align-items-center { align-items: center; }
+  .align-items-stretch { align-items: stretch; }
+
+  .flex-wrap { flex-wrap: wrap; }
+  .flex-nowrap { flex-wrap: nowrap; }
+  .flex-column { flex-direction: column; }
+  .flex-row { flex-direction: row; }
+  .flex-grow { flex-grow: 1; }
+
+  // Gap utilities
+  @for $i from 0 through 5 {
+    .gap-#{$i} { gap: map-get($spacers, $i); }
+  }
+
+  // Typography
+  .fw-light { font-weight: 300; }
+  .fw-normal { font-weight: $font-weight-normal; }
+  .fw-medium { font-weight: $font-weight-medium; }
+  .fw-bold { font-weight: $font-weight-bold; }
+
+  .text-decoration-none { text-decoration: none; }
+  .list-unstyled { list-style: none; padding-left: 0; }
+
+  // Background colors using variables
+  .bg-primary { background-color: $primary; }
+  .bg-secondary { background-color: $secondary; }
+  .bg-success { background-color: $success; }
+  .bg-danger { background-color: $danger; }
+  .bg-warning { background-color: $warning; }
+  .bg-info { background-color: $info; }
+  .bg-light { background-color: $light; }
+  .bg-dark { background-color: $dark; }
+
+  // Text colors
+  .text-primary { color: $primary; }
+  .text-secondary { color: $secondary; }
+  .text-success { color: $success; }
+  .text-danger { color: $danger; }
+  .text-warning { color: $warning; }
+  .text-white { color: white; }
+  .text-dark { color: $dark; }
+  .text-muted { color: $gray-600; }
+
+  // Spacing - using SCSS loop!
+  @each $key, $value in $spacers {
+    .m-#{$key} { margin: $value; }
+    .mt-#{$key} { margin-top: $value; }
+    .mb-#{$key} { margin-bottom: $value; }
+    .ms-#{$key}, .ml-#{$key} { margin-left: $value; }
+    .me-#{$key}, .mr-#{$key} { margin-right: $value; }
+    .mx-#{$key} { margin-left: $value; margin-right: $value; }
+    .my-#{$key} { margin-top: $value; margin-bottom: $value; }
+
+    .p-#{$key} { padding: $value; }
+    .pt-#{$key} { padding-top: $value; }
+    .pb-#{$key} { padding-bottom: $value; }
+    .ps-#{$key}, .pl-#{$key} { padding-left: $value; }
+    .pe-#{$key}, .pr-#{$key} { padding-right: $value; }
+    .px-#{$key} { padding-left: $value; padding-right: $value; }
+    .py-#{$key} { padding-top: $value; padding-bottom: $value; }
+  }
+
+  // Border utilities
+  .rounded { border-radius: $border-radius; }
+  .rounded-sm { border-radius: $border-radius-sm; }
+  .rounded-lg { border-radius: $border-radius-lg; }
+  .rounded-full { border-radius: 9999px; }
+
+  .border { border: 1px solid $gray-300; }
+  .border-0 { border: 0; }
+
+  // Shadow utilities
+  .shadow-sm { box-shadow: $shadow-sm; }
+  .shadow { box-shadow: $shadow; }
+  .shadow-lg { box-shadow: $shadow-lg; }
+
+  // Width/Height
+  .w-100, .w-full { width: 100%; }
+  .h-100, .h-full { height: 100%; }
+  .w-auto { width: auto; }
+
+  // Cards using your mixin
+  .card {
+    @include card;
+  }
+
+  .card-body {
+    padding: 1.25rem;
+  }
+
+  // Forms using your mixin
+  .form-control {
+    @include input-base;
+  }
+}
+
+// ==========================================================================
+// YOUR CUSTOM STYLES
+// Add your project-specific styles below using full SCSS power!
+// ==========================================================================
+
+// Example: Custom component with nesting
+.hero {
+  @include flex-center;
+  min-height: 60vh;
+  background: linear-gradient(135deg, $primary 0%, darken($primary, 15%) 100%);
+  color: white;
+
+  &__title {
+    @include heading(2.5rem);
+    margin-bottom: 1rem;
+
+    @include md {
+      font-size: 3.5rem;
+    }
+
+    @include lg {
+      font-size: 4.5rem;
+    }
+  }
+
+  &__subtitle {
+    font-size: 1.125rem;
+    opacity: 0.9;
+
+    @include md {
+      font-size: 1.25rem;
+    }
+  }
+}

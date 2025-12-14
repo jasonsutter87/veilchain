@@ -1,0 +1,75 @@
+{{ define "main" }}
+<article class="blog-post">
+  <div class="container">
+    <header class="blog-post__header">
+      <div class="blog-post__meta">
+        <span class="blog-post__date">
+          <i class="far fa-calendar"></i>
+          {{ .Date.Format "January 2, 2006" }}
+        </span>
+        {{ with .Params.author }}
+        <span class="blog-post__author">
+          <i class="far fa-user"></i>
+          {{ . }}
+        </span>
+        {{ end }}
+        <span class="blog-post__reading-time">
+          <i class="far fa-clock"></i>
+          {{ .ReadingTime }} min read
+        </span>
+      </div>
+      <h1 class="blog-post__title">{{ .Title }}</h1>
+      {{ with .Description }}
+      <p class="blog-post__excerpt">{{ . }}</p>
+      {{ end }}
+      {{ with .Params.tags }}
+      <div class="blog-post__tags">
+        {{ range . }}
+        <a href="{{ "/tags/" | relURL }}{{ . | urlize }}" class="blog-card__tag">{{ . }}</a>
+        {{ end }}
+      </div>
+      {{ end }}
+    </header>
+    
+    {{ with .Params.image }}
+    <figure class="blog-post__image">
+      <img src="{{ . }}" alt="{{ $.Title }}">
+    </figure>
+    {{ end }}
+    
+    <div class="blog-post__content">
+      {{ .Content }}
+    </div>
+    
+    <footer class="blog-post__footer">
+      <div class="blog-post__share">
+        <span>Share:</span>
+        <a href="https://twitter.com/intent/tweet?text={{ .Title }}&url={{ .Permalink }}" target="_blank" rel="noopener" aria-label="Share on Twitter">
+          <i class="fab fa-twitter"></i>
+        </a>
+        <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ .Permalink }}&title={{ .Title }}" target="_blank" rel="noopener" aria-label="Share on LinkedIn">
+          <i class="fab fa-linkedin-in"></i>
+        </a>
+        <a href="mailto:?subject={{ .Title }}&body={{ .Permalink }}" aria-label="Share via Email">
+          <i class="fas fa-envelope"></i>
+        </a>
+      </div>
+      
+      <nav class="blog-post__nav">
+        {{ with .PrevInSection }}
+        <div class="blog-post__nav-prev">
+          <span>Previous</span>
+          <a href="{{ .Permalink }}">{{ .Title }}</a>
+        </div>
+        {{ end }}
+        {{ with .NextInSection }}
+        <div class="blog-post__nav-next">
+          <span>Next</span>
+          <a href="{{ .Permalink }}">{{ .Title }}</a>
+        </div>
+        {{ end }}
+      </nav>
+    </footer>
+  </div>
+</article>
+{{ end }}

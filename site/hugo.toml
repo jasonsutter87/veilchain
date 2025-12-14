@@ -1,0 +1,48 @@
+baseURL = 'https://veilchain.io/'
+languageCode = 'en-us'
+title = 'VeilChain - Bitcoin-grade Immutability Without the Blockchain'
+
+[params]
+CompanyName = 'VeilChain'
+tagline = 'Bitcoin-grade immutability without the blockchain baggage'
+description = 'Merkle tree ledger service for tamper-proof audit logs, document notarization, and verifiable data storage.'
+repoName = 'veilchain'
+githubUrl = 'https://github.com/jasonsutter87/veilchain'
+docsUrl = '/docs'
+apiUrl = '/api'
+
+[params.features]
+feature1 = 'Append-only storage with cryptographic proofs'
+feature2 = 'External anchoring to Bitcoin & Ethereum'
+feature3 = 'Self-hostable with Docker'
+
+[params.social]
+github = 'https://github.com/jasonsutter87/veilchain'
+twitter = ''
+
+[environments.development]
+baseURL = 'http://localhost:1313/'
+
+[environments.production]
+baseURL = 'https://veilchain.io/'
+
+[menu]
+[[menu.main]]
+name = 'Features'
+url = '/features/'
+weight = 1
+
+[[menu.main]]
+name = 'Docs'
+url = '/docs/'
+weight = 2
+
+[[menu.main]]
+name = 'Pricing'
+url = '/pricing/'
+weight = 3
+
+[[menu.main]]
+name = 'GitHub'
+url = 'https://github.com/jasonsutter87/veilchain'
+weight = 4

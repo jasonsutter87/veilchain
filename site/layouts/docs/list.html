@@ -1,0 +1,78 @@
+{{ define "main" }}
+<section class="docs">
+  <div class="container">
+    <div class="row">
+      <!-- Sidebar Navigation -->
+      <div class="col-12 col-lg-3">
+        <nav class="docs__sidebar">
+          <h3 class="docs__sidebar-title">Documentation</h3>
+          <ul class="docs__nav">
+            {{ range .Site.Menus.docs }}
+            <li class="docs__nav-item">
+              <a href="{{ .URL }}" class="docs__nav-link {{ if eq $.RelPermalink .URL }}active{{ end }}">
+                {{ .Name }}
+              </a>
+              {{ if .HasChildren }}
+              <ul class="docs__nav-sub">
+                {{ range .Children }}
+                <li>
+                  <a href="{{ .URL }}" class="docs__nav-link {{ if eq $.RelPermalink .URL }}active{{ end }}">
+                    {{ .Name }}
+                  </a>
+                </li>
+                {{ end }}
+              </ul>
+              {{ end }}
+            </li>
+            {{ end }}
+            
+            <!-- Fallback if no menu defined -->
+            {{ if not .Site.Menus.docs }}
+            {{ range .Pages.ByWeight }}
+            <li class="docs__nav-item">
+              <a href="{{ .Permalink }}" class="docs__nav-link {{ if eq $.RelPermalink .RelPermalink }}active{{ end }}">
+                {{ .Title }}
+              </a>
+            </li>
+            {{ end }}
+            {{ end }}
+          </ul>
+        </nav>
+      </div>
+      
+      <!-- Main Content -->
+      <div class="col-12 col-lg-9">
+        <article class="docs__content">
+          <header class="docs__header">
+            <h1 class="docs__title">{{ .Title }}</h1>
+            {{ with .Description }}
+            <p class="docs__description">{{ . }}</p>
+            {{ end }}
+          </header>
+          
+          <div class="docs__body prose">
+            {{ .Content }}
+          </div>
+          
+          <!-- Child Pages -->
+          {{ if .Pages }}
+          <div class="docs__children">
+            <h2>In This Section</h2>
+            <div class="docs__cards">
+              {{ range .Pages.ByWeight }}
+              <a href="{{ .Permalink }}" class="docs__card">
+                <h3>{{ .Title }}</h3>
+                {{ with .Description }}
+                <p>{{ . }}</p>
+                {{ end }}
+              </a>
+              {{ end }}
+            </div>
+          </div>
+          {{ end }}
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+{{ end }}

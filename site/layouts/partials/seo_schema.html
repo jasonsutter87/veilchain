@@ -1,0 +1,32 @@
+<!-- Primary Meta Tags -->
+{{ $title := .Title }}
+{{ if .Params.PageTitle }}
+  {{ $title = .Params.PageTitle }}
+{{ end }}
+{{ $description := .Description | default .Summary }}
+{{ $image := .Params.image | default .Params.seoimage }}
+
+<meta name="title" content="{{ $title }}">
+<meta name="description" content="{{ $description }}">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="{{ if eq .Section "blog" }}article{{ else }}website{{ end }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:description" content="{{ $description }}">
+{{ with $image }}<meta property="og:image" content="{{ $.Site.BaseURL }}{{ . }}">{{ end }}
+<meta property="og:site_name" content="{{ .Site.Title }}">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="{{ .Permalink }}">
+<meta name="twitter:title" content="{{ $title }}">
+<meta name="twitter:description" content="{{ $description }}">
+{{ with $image }}<meta name="twitter:image" content="{{ $.Site.BaseURL }}{{ . }}">{{ end }}
+
+<!-- Robots -->
+{{ if or .Params.noIndex (eq hugo.Environment "development") }}
+<meta name="robots" content="noindex, nofollow">
+{{ else }}
+<meta name="robots" content="index, follow">
+{{ end }}
