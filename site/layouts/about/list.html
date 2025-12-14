@@ -1,0 +1,112 @@
+{{ define "main" }}
+<div class="about-page">
+  <!-- Hero Section -->
+  <section class="about-hero">
+    <div class="container">
+      <h1>Building Trust Through Cryptography</h1>
+      <p class="about-hero__subtitle">VeilChain makes Bitcoin-grade immutability accessible to everyone, without the blockchain overhead.</p>
+    </div>
+  </section>
+
+  <!-- Mission Section -->
+  <section class="about-section">
+    <div class="container">
+      <div class="about-grid">
+        <div class="about-content">
+          <h2>Our Mission</h2>
+          <p>In a world where data can be silently altered, trust becomes a luxury. VeilChain exists to change that.</p>
+          <p>We believe that every organization, regardless of size, should have access to cryptographically verifiable audit logs. Not because regulations demand it, but because trust should be provable.</p>
+          <p>Our mission is simple: <strong>make data integrity mathematically verifiable, not just promised.</strong></p>
+        </div>
+        <div class="about-visual">
+          <div class="about-card">
+            <div class="about-card__icon">
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+            </div>
+            <h4>Cryptographic Proof</h4>
+            <p>Every entry is mathematically linked. Tampering is not just difficult—it's detectable.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Section -->
+  <section class="about-section about-section--alt">
+    <div class="container">
+      <h2 class="text-center">Why VeilChain?</h2>
+      <div class="about-reasons">
+        <div class="about-reason">
+          <div class="about-reason__number">01</div>
+          <h3>Blockchain Security, Zero Complexity</h3>
+          <p>Merkle trees provide the same cryptographic guarantees as blockchain without consensus mechanisms, gas fees, or network dependencies.</p>
+        </div>
+        <div class="about-reason">
+          <div class="about-reason__number">02</div>
+          <h3>Self-Hostable & Private</h3>
+          <p>Your data stays yours. Run VeilChain on your infrastructure with Docker, or use our managed API. No vendor lock-in.</p>
+        </div>
+        <div class="about-reason">
+          <div class="about-reason__number">03</div>
+          <h3>Developer-First Design</h3>
+          <p>Clean REST APIs, TypeScript SDK, and comprehensive documentation. Integrate in hours, not weeks.</p>
+        </div>
+        <div class="about-reason">
+          <div class="about-reason__number">04</div>
+          <h3>Audit-Ready</h3>
+          <p>Generate inclusion proofs for any entry. External auditors can verify without accessing your data.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Technology Section -->
+  <section class="about-section">
+    <div class="container">
+      <div class="about-grid about-grid--reverse">
+        <div class="about-visual">
+          <div class="about-tech">
+            <pre><code>// Merkle Tree Verification
+const proof = await veilchain.getProof(entryId);
+const isValid = veilchain.verify(proof, rootHash);
+// isValid: true ✓</code></pre>
+          </div>
+        </div>
+        <div class="about-content">
+          <h2>The Technology</h2>
+          <p>VeilChain is built on <strong>sparse Merkle trees</strong>—the same data structure that secures billions of dollars in cryptocurrency.</p>
+          <p>Each entry is hashed with SHA-256 and inserted into an append-only tree. The tree's root hash changes with every addition, creating a chain of cryptographic commitments.</p>
+          <p>To verify any entry, you only need:</p>
+          <ul>
+            <li>The entry data</li>
+            <li>A logarithmic-sized proof path</li>
+            <li>The tree's root hash</li>
+          </ul>
+          <p>No trusted third party required. Just math.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Team Section -->
+  <section class="about-section about-section--alt">
+    <div class="container">
+      <h2 class="text-center">Open Source, Open Future</h2>
+      <p class="about-opensource-text">VeilChain is part of the <strong>Trustless Voting System (TVS)</strong> initiative—an ambitious project to build verifiable election infrastructure. But the technology isn't limited to voting.</p>
+      <p class="about-opensource-text">We're building VeilChain as a standalone product because we believe tamper-proof audit logs should be a commodity, not a luxury. Every healthcare system, financial platform, and legal firm deserves access to cryptographic data integrity.</p>
+      <div class="about-cta">
+        <a href="https://github.com/veilchain" class="btn btn-outline" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          View on GitHub
+        </a>
+        <a href="/docs/" class="btn btn-primary">Read the Docs</a>
+      </div>
+    </div>
+  </section>
+</div>
+{{ end }}
