@@ -5,8 +5,8 @@
  * Provides O(log n) proof generation and verification.
  */
 
-import { sha256, hashPair, EMPTY_HASH } from './hash.js';
-import type { MerkleProof, MerkleNode } from '../types.js';
+import { hashPair, EMPTY_HASH } from './hash.js';
+import type { MerkleProof } from '../types.js';
 
 /**
  * Sparse Merkle Tree for append-only ledger

@@ -6,7 +6,7 @@
  */
 
 import { MerkleTree } from './merkle.js';
-import { sha256, isValidHash } from './hash.js';
+import { isValidHash } from './hash.js';
 import type { MerkleProof, SerializedProof, ProofVerificationResult } from '../types.js';
 
 /**

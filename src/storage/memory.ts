@@ -101,15 +101,25 @@ export class MemoryStorage implements StorageBackend {
 
   /**
    * Update ledger metadata
+   * Creates the ledger if it doesn't exist (for initial creation)
    */
   async updateLedgerMetadata(
     ledgerId: string,
     updates: Partial<LedgerMetadata>
   ): Promise<void> {
     const existing = this.metadata.get(ledgerId);
+
     if (!existing) {
+      // If ledger doesn't exist and we have a full metadata object, create it
+      if ('id' in updates && 'name' in updates && 'createdAt' in updates) {
+        this.metadata.set(ledgerId, updates as LedgerMetadata);
+        this.entries.set(ledgerId, new Map());
+        this.entriesByPosition.set(ledgerId, new Map());
+        return;
+      }
       throw new Error(`Ledger ${ledgerId} not found`);
     }
+
     this.metadata.set(ledgerId, { ...existing, ...updates });
   }
 
