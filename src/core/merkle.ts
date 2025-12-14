@@ -109,8 +109,31 @@ export class MerkleTree {
 
   /**
    * Verify a proof of inclusion
+   *
+   * This static method verifies that an entry with a given hash exists at
+   * a specific position in a Merkle tree with a known root hash.
+   *
+   * The verification process:
+   * 1. Start with the leaf hash
+   * 2. Walk up the tree, combining with sibling hashes
+   * 3. Check if the computed root matches the provided root
+   *
+   * This can be done without access to the full tree or any storage,
+   * making it perfect for offline verification.
+   *
    * @param proof - The Merkle proof to verify
-   * @returns True if the proof is valid
+   * @returns True if the proof is valid (computed root matches provided root)
+   *
+   * @example
+   * ```typescript
+   * const tree = new MerkleTree();
+   * tree.append(hash1);
+   * const proof = tree.getProof(0);
+   *
+   * // Later, verify the proof without the tree
+   * const isValid = MerkleTree.verify(proof);
+   * console.log(isValid); // true
+   * ```
    */
   static verify(proof: MerkleProof): boolean {
     let currentHash = proof.leaf;

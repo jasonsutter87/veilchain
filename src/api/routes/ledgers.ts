@@ -21,6 +21,60 @@ export async function registerLedgerRoutes(
   service: LedgerService
 ): Promise<void> {
   /**
+   * List all ledgers
+   * GET /v1/ledgers
+   */
+  fastify.get<{
+    Querystring: { offset?: string; limit?: string };
+  }>(
+    '/v1/ledgers',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            offset: { type: 'string' },
+            limit: { type: 'string' }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      try {
+        const offset = request.query.offset ? parseInt(request.query.offset, 10) : 0;
+        const limit = request.query.limit ? parseInt(request.query.limit, 10) : 100;
+
+        const result = await service.listLedgers({ offset, limit });
+
+        const response = {
+          ledgers: result.ledgers.map(ledger => ({
+            id: ledger.id,
+            name: ledger.name,
+            description: ledger.description,
+            rootHash: ledger.rootHash,
+            entryCount: ledger.entryCount.toString(),
+            createdAt: ledger.createdAt.toISOString(),
+            lastEntryAt: ledger.lastEntryAt?.toISOString()
+          })),
+          total: result.total,
+          offset,
+          limit
+        };
+
+        return reply.send(response);
+      } catch (error: any) {
+        fastify.log.error(error, 'Error listing ledgers');
+        return reply.code(500).send({
+          error: {
+            code: 'LEDGER_LIST_FAILED',
+            message: error.message || 'Failed to list ledgers'
+          }
+        });
+      }
+    }
+  );
+
+  /**
    * Create a new ledger
    * POST /v1/ledgers
    */

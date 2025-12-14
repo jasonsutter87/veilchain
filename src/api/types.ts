@@ -178,6 +178,40 @@ export interface AuthenticatedRequest extends FastifyRequest {
 }
 
 /**
+ * List entries response
+ */
+export interface ListEntriesResponse<T = unknown> {
+  entries: Array<{
+    id: string;
+    position: string;
+    data: T;
+    hash: string;
+    createdAt: string;
+  }>;
+  total: string;
+  offset: string;
+  limit: number;
+}
+
+/**
+ * List ledgers response
+ */
+export interface ListLedgersResponse {
+  ledgers: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    rootHash: string;
+    entryCount: string;
+    createdAt: string;
+    lastEntryAt?: string;
+  }>;
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+/**
  * Ledger service interface for API routes
  */
 export interface LedgerService {
@@ -188,6 +222,14 @@ export interface LedgerService {
   }): Promise<CoreLedgerMetadata>;
 
   getLedger(ledgerId: string): Promise<CoreLedgerMetadata | null>;
+
+  listLedgers(options?: {
+    offset?: number;
+    limit?: number;
+  }): Promise<{
+    ledgers: CoreLedgerMetadata[];
+    total: number;
+  }>;
 
   appendEntry<T = unknown>(
     ledgerId: string,
@@ -208,6 +250,17 @@ export interface LedgerService {
     entryId: string,
     includeProof?: boolean
   ): Promise<CoreLedgerEntry<T> | null>;
+
+  listEntries<T = unknown>(
+    ledgerId: string,
+    options?: {
+      offset?: bigint;
+      limit?: number;
+    }
+  ): Promise<{
+    entries: CoreLedgerEntry<T>[];
+    total: bigint;
+  }>;
 
   getProof(ledgerId: string, entryId: string): Promise<MerkleProof | null>;
 

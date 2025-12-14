@@ -88,6 +88,19 @@ export class MemoryStorage implements StorageBackend {
   }
 
   /**
+   * List all ledgers with pagination
+   */
+  async listLedgers(options?: {
+    offset?: number;
+    limit?: number;
+  }): Promise<LedgerMetadata[]> {
+    const { offset = 0, limit = 100 } = options ?? {};
+    return Array.from(this.metadata.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(offset, offset + limit);
+  }
+
+  /**
    * Create ledger metadata
    */
   async createLedgerMetadata(metadata: LedgerMetadata): Promise<void> {

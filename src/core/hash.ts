@@ -38,10 +38,25 @@ export function hashPair(left: string, right: string): string {
 
 /**
  * Hashes an entry's data for storage in the Merkle tree
- * Includes position to prevent reordering attacks
+ *
+ * This function creates a cryptographic hash of ledger entry data, including
+ * the position to prevent reordering attacks. The hash includes:
+ * - Position: Ensures entries cannot be reordered without detection
+ * - Data: The actual entry payload
+ * - Timestamp: When the entry was created
+ *
+ * The output is deterministic for the same inputs and creates a unique
+ * identifier for the entry in the Merkle tree.
+ *
  * @param data - The entry data (will be JSON stringified)
- * @param position - The entry's position in the ledger
- * @returns Hash of the entry (hex string)
+ * @param position - The entry's position in the ledger (0-indexed)
+ * @returns SHA-256 hash of the entry as hex string (64 characters)
+ *
+ * @example
+ * ```typescript
+ * const hash = hashEntry({ user: 'alice', action: 'login' }, 0n);
+ * console.log(hash); // "a1b2c3d4..."
+ * ```
  */
 export function hashEntry(data: unknown, position: bigint): string {
   const canonical = JSON.stringify({

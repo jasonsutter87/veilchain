@@ -81,6 +81,23 @@ class VeilChainService implements LedgerService {
   }
 
   /**
+   * List all ledgers with pagination
+   */
+  async listLedgers(options?: {
+    offset?: number;
+    limit?: number;
+  }): Promise<{
+    ledgers: LedgerMetadata[];
+    total: number;
+  }> {
+    const ledgers = await this.storage.listLedgers(options);
+    return {
+      ledgers,
+      total: ledgers.length
+    };
+  }
+
+  /**
    * Append an entry to a ledger
    */
   async appendEntry<T = unknown>(
@@ -164,6 +181,33 @@ class VeilChainService implements LedgerService {
     }
 
     return entry as LedgerEntry<T>;
+  }
+
+  /**
+   * List entries with pagination
+   */
+  async listEntries<T = unknown>(
+    ledgerId: string,
+    options?: {
+      offset?: bigint;
+      limit?: number;
+    }
+  ): Promise<{
+    entries: LedgerEntry<T>[];
+    total: bigint;
+  }> {
+    const entries = await this.storage.list(ledgerId, {
+      offset: options?.offset,
+      limit: options?.limit
+    });
+
+    const metadata = await this.storage.getLedgerMetadata(ledgerId);
+    const total = metadata?.entryCount ?? 0n;
+
+    return {
+      entries: entries as LedgerEntry<T>[],
+      total
+    };
   }
 
   /**

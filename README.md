@@ -14,9 +14,13 @@ VeilChain is a Merkle tree ledger service that provides cryptographically verifi
 
 ## Quick Start
 
+### Installation
+
 ```bash
 npm install @veilchain/core
 ```
+
+### Basic Usage (Core Library)
 
 ```typescript
 import { MerkleTree, sha256 } from '@veilchain/core';
@@ -38,6 +42,59 @@ console.log(isValid); // true
 // Get current root hash (publish this for external verification)
 console.log(tree.root);
 ```
+
+### Using the SDK (Recommended)
+
+```typescript
+import { VeilChainClient } from '@veilchain/core';
+
+const client = new VeilChainClient({
+  baseUrl: 'https://api.veilchain.com',
+  apiKey: process.env.VEILCHAIN_API_KEY
+});
+
+// Create a ledger
+const ledger = await client.createLedger({
+  name: 'audit-log',
+  description: 'Application audit trail'
+});
+
+// Append an entry with automatic proof generation
+const result = await client.append(ledger.id, {
+  user: 'alice@example.com',
+  action: 'login',
+  timestamp: new Date().toISOString()
+});
+
+console.log('Entry ID:', result.entry.id);
+console.log('Proof:', result.proof);
+console.log('New Root:', result.newRoot);
+
+// Get entries
+const entries = await client.listEntries(ledger.id, { limit: 10 });
+
+// Verify proof offline (no API call needed)
+import { MerkleTree } from '@veilchain/core';
+const isValid = MerkleTree.verify(result.proof);
+```
+
+### Running the API Server
+
+```bash
+# Using Docker (recommended)
+cd docker && docker-compose up -d
+
+# Or run locally
+npm run build
+npm run start:api
+```
+
+## Documentation
+
+- [API Reference](./API_EXAMPLES.md) - Complete REST API documentation with examples
+- [SDK Examples](./SDK_EXAMPLES.md) - Client SDK usage patterns
+- [Architecture Overview](./OVERVIEW.md) - System design and architecture
+- [Roadmap](./ROADMAP.md) - Future features and milestones
 
 ## Use Cases
 

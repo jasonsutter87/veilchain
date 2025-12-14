@@ -20,6 +20,77 @@ export async function registerEntryRoutes(
   service: LedgerService
 ): Promise<void> {
   /**
+   * List entries in a ledger
+   * GET /v1/ledgers/:id/entries
+   */
+  fastify.get<{
+    Params: { id: string };
+    Querystring: { offset?: string; limit?: string };
+  }>(
+    '/v1/ledgers/:id/entries',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' }
+          }
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            offset: { type: 'string' },
+            limit: { type: 'string' }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
+      try {
+        const { id: ledgerId } = request.params;
+        const offset = request.query.offset ? BigInt(request.query.offset) : 0n;
+        const limit = request.query.limit ? parseInt(request.query.limit, 10) : 100;
+
+        const result = await service.listEntries(ledgerId, { offset, limit });
+
+        const response = {
+          entries: result.entries.map(entry => ({
+            id: entry.id,
+            position: entry.position.toString(),
+            data: entry.data,
+            hash: entry.hash,
+            createdAt: entry.createdAt.toISOString()
+          })),
+          total: result.total.toString(),
+          offset: offset.toString(),
+          limit
+        };
+
+        return reply.send(response);
+      } catch (error: any) {
+        fastify.log.error(error, 'Error listing entries');
+
+        if (error.message.includes('not found')) {
+          return reply.code(404).send({
+            error: {
+              code: 'LEDGER_NOT_FOUND',
+              message: error.message
+            }
+          });
+        }
+
+        return reply.code(500).send({
+          error: {
+            code: 'ENTRY_LIST_FAILED',
+            message: error.message || 'Failed to list entries'
+          }
+        });
+      }
+    }
+  );
+
+  /**
    * Append a new entry to ledger
    * POST /v1/ledgers/:id/entries
    */
