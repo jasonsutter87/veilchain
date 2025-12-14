@@ -1,20 +1,20 @@
 baseURL = 'https://veilchain.io/'
 languageCode = 'en-us'
-title = 'VeilChain - Bitcoin-grade Immutability Without the Blockchain'
+title = 'VeilChain - Merkle Tree Ledger for Immutable Audit Logs'
 
 [params]
 CompanyName = 'VeilChain'
-tagline = 'Bitcoin-grade immutability without the blockchain baggage'
-description = 'Merkle tree ledger service for tamper-proof audit logs, document notarization, and verifiable data storage.'
+tagline = 'Immutable ledgers with merkle trees for data integrity'
+description = 'Tamper-proof merkle tree ledger for immutable audit logs. Cryptographic data integrity and verification without blockchain overhead.'
 repoName = 'veilchain'
 githubUrl = 'https://github.com/jasonsutter87/veilchain'
 docsUrl = '/docs'
 apiUrl = '/api'
 
 [params.features]
-feature1 = 'Append-only storage with cryptographic proofs'
-feature2 = 'External anchoring to Bitcoin & Ethereum'
-feature3 = 'Self-hostable with Docker'
+feature1 = 'Immutable ledger with merkle tree cryptographic proofs'
+feature2 = 'Tamper-proof audit logs for data integrity'
+feature3 = 'Self-hostable merkle tree service with Docker'
 
 [params.social]
 github = 'https://github.com/jasonsutter87/veilchain'

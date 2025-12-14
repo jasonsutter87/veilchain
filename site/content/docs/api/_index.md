@@ -1,13 +1,13 @@
 ---
-title: 'API Reference'
-description: 'Complete REST API documentation for VeilChain. Manage ledgers, append entries, and generate cryptographic proofs.'
+title: 'REST API - Immutable Ledger & Merkle Tree Proof Generation'
+description: 'VeilChain REST API for tamper-proof ledgers. Create audit logs, append immutable entries, and generate merkle tree proofs.'
 weight: 2
 css: ['docs.css']
 ---
 
 ## Overview
 
-The VeilChain REST API provides programmatic access to create and manage tamper-proof ledgers. All endpoints return JSON and use standard HTTP response codes.
+The VeilChain REST API provides programmatic access to create and manage immutable ledgers with merkle trees. Build tamper-proof audit logs and generate cryptographic proofs for data integrity verification. All endpoints return JSON and use standard HTTP response codes.
 
 **Base URL:** `https://api.veilchain.io/v1` (or your self-hosted instance)
 
@@ -101,13 +101,13 @@ Returns detailed information about a specific ledger.
 
 ## Entries
 
-### Append Entry
+### Append Entry to Immutable Ledger
 
 ```http
 POST /ledgers/:id/entries
 ```
 
-Appends a new entry to the ledger. **This operation is immutable** - once an entry is added, it cannot be modified or deleted.
+Appends a new entry to the tamper-proof merkle tree ledger. **This operation is immutable** - once an entry is added to the audit log, it cannot be modified or deleted, ensuring data integrity.
 
 **Request Body:**
 ```json
@@ -197,15 +197,15 @@ Retrieves an entry by its index.
 
 ---
 
-## Proofs
+## Merkle Proofs
 
-### Get Inclusion Proof
+### Get Merkle Inclusion Proof
 
 ```http
 GET /ledgers/:id/proofs/:index
 ```
 
-Generates a cryptographic proof that an entry exists in the ledger.
+Generates a cryptographic merkle proof that an entry exists in the immutable ledger. Use these tamper-proof proofs for data integrity verification.
 
 **Response:**
 ```json
