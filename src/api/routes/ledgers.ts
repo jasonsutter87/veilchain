@@ -1,0 +1,236 @@
+/**
+ * VeilChain Ledger Management Routes
+ *
+ * Endpoints for creating and retrieving ledger metadata.
+ */
+
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type {
+  CreateLedgerRequest,
+  CreateLedgerResponse,
+  GetLedgerResponse,
+  GetRootResponse,
+  LedgerService
+} from '../types.js';
+
+/**
+ * Register ledger routes
+ */
+export async function registerLedgerRoutes(
+  fastify: FastifyInstance,
+  service: LedgerService
+): Promise<void> {
+  /**
+   * Create a new ledger
+   * POST /v1/ledgers
+   */
+  fastify.post<{
+    Body: CreateLedgerRequest;
+    Reply: CreateLedgerResponse;
+  }>(
+    '/v1/ledgers',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 255 },
+            description: { type: 'string', maxLength: 1000 },
+            schema: { type: 'object' }
+          }
+        },
+        response: {
+          201: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              description: { type: 'string' },
+              rootHash: { type: 'string' },
+              createdAt: { type: 'string' },
+              entryCount: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    async (request: FastifyRequest<{ Body: CreateLedgerRequest }>, reply: FastifyReply) => {
+      try {
+        const { name, description, schema } = request.body;
+
+        // Validate name
+        if (!name || name.trim().length === 0) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_NAME',
+              message: 'Ledger name is required'
+            }
+          });
+        }
+
+        // Create ledger
+        const metadata = await service.createLedger({
+          name: name.trim(),
+          description: description?.trim(),
+          schema
+        });
+
+        const response: CreateLedgerResponse = {
+          id: metadata.id,
+          name: metadata.name,
+          description: metadata.description,
+          rootHash: metadata.rootHash,
+          createdAt: metadata.createdAt.toISOString(),
+          entryCount: metadata.entryCount.toString()
+        };
+
+        return reply.code(201).send(response);
+      } catch (error: any) {
+        fastify.log.error(error, 'Error creating ledger');
+        return reply.code(500).send({
+          error: {
+            code: 'LEDGER_CREATION_FAILED',
+            message: error.message || 'Failed to create ledger'
+          }
+        });
+      }
+    }
+  );
+
+  /**
+   * Get ledger metadata
+   * GET /v1/ledgers/:id
+   */
+  fastify.get<{
+    Params: { id: string };
+    Reply: GetLedgerResponse;
+  }>(
+    '/v1/ledgers/:id',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              description: { type: 'string' },
+              rootHash: { type: 'string' },
+              entryCount: { type: 'string' },
+              createdAt: { type: 'string' },
+              lastEntryAt: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+
+        const metadata = await service.getLedger(id);
+
+        if (!metadata) {
+          return reply.code(404).send({
+            error: {
+              code: 'LEDGER_NOT_FOUND',
+              message: `Ledger ${id} not found`
+            }
+          });
+        }
+
+        const response: GetLedgerResponse = {
+          id: metadata.id,
+          name: metadata.name,
+          description: metadata.description,
+          rootHash: metadata.rootHash,
+          entryCount: metadata.entryCount.toString(),
+          createdAt: metadata.createdAt.toISOString(),
+          lastEntryAt: metadata.lastEntryAt?.toISOString()
+        };
+
+        return reply.send(response);
+      } catch (error: any) {
+        fastify.log.error(error, 'Error retrieving ledger');
+        return reply.code(500).send({
+          error: {
+            code: 'LEDGER_RETRIEVAL_FAILED',
+            message: error.message || 'Failed to retrieve ledger'
+          }
+        });
+      }
+    }
+  );
+
+  /**
+   * Get current root hash
+   * GET /v1/ledgers/:id/root
+   */
+  fastify.get<{
+    Params: { id: string };
+    Reply: GetRootResponse;
+  }>(
+    '/v1/ledgers/:id/root',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              rootHash: { type: 'string' },
+              entryCount: { type: 'string' },
+              lastEntryAt: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+
+        const rootData = await service.getCurrentRoot(id);
+
+        if (!rootData) {
+          return reply.code(404).send({
+            error: {
+              code: 'LEDGER_NOT_FOUND',
+              message: `Ledger ${id} not found`
+            }
+          });
+        }
+
+        const response: GetRootResponse = {
+          rootHash: rootData.rootHash,
+          entryCount: rootData.entryCount.toString(),
+          lastEntryAt: rootData.lastEntryAt?.toISOString()
+        };
+
+        return reply.send(response);
+      } catch (error: any) {
+        fastify.log.error(error, 'Error retrieving root hash');
+        return reply.code(500).send({
+          error: {
+            code: 'ROOT_RETRIEVAL_FAILED',
+            message: error.message || 'Failed to retrieve root hash'
+          }
+        });
+      }
+    }
+  );
+}

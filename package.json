@@ -8,6 +8,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "start:api": "node dist/api/server.js",
+    "dev:api": "tsc && node dist/api/server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
@@ -34,6 +36,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
+    "@types/pg": "^8.10.9",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
     "eslint": "^8.56.0",
@@ -42,6 +45,11 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "pg": "^8.11.3",
+    "fastify": "^4.25.2",
+    "@fastify/cors": "^8.5.0",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/rate-limit": "^9.1.0"
   },
   "engines": {
     "node": ">=18.0.0"
