@@ -27,15 +27,13 @@ export function sha256Buffer(data: string | Buffer): Buffer {
 
 /**
  * Combines and hashes two child hashes to create parent hash
- * Uses sorted concatenation to ensure consistent ordering
+ * Order matters - left||right produces different hash than right||left
  * @param left - Left child hash (hex string)
  * @param right - Right child hash (hex string)
  * @returns Parent hash (hex string)
  */
 export function hashPair(left: string, right: string): string {
-  // Sort to ensure consistent ordering regardless of input order
-  const [first, second] = [left, right].sort();
-  return sha256(first + second);
+  return sha256(left + right);
 }
 
 /**

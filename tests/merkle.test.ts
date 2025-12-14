@@ -32,13 +32,13 @@ describe('Hash Utilities', () => {
   });
 
   describe('hashPair', () => {
-    it('should produce consistent results regardless of order', () => {
+    it('should produce different results for different order', () => {
       const a = sha256('a');
       const b = sha256('b');
-      // hashPair sorts internally, so order shouldn't matter
+      // Order matters in Merkle trees - position is significant
       const hash1 = hashPair(a, b);
       const hash2 = hashPair(b, a);
-      expect(hash1).toBe(hash2);
+      expect(hash1).not.toBe(hash2);
     });
   });
 
