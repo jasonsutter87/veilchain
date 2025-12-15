@@ -39,7 +39,7 @@
 
     requireAuth() {
       if (!this.isAuthenticated()) {
-        window.location.href = '/dashboard/login/';
+        window.location.href = '/login/';
         return false;
       }
       return true;
@@ -63,7 +63,7 @@
 
       if (response.status === 401) {
         Auth.clearAuth();
-        window.location.href = '/dashboard/login/';
+        window.location.href = '/login/';
         throw new Error('Unauthorized');
       }
 
@@ -159,7 +159,7 @@
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         Auth.clearAuth();
-        window.location.href = '/dashboard/login/';
+        window.location.href = '/login/';
       });
     }
 
