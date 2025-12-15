@@ -1,12 +1,9 @@
 -- VeilChain Database Schema
 -- Append-only ledger with Merkle tree integrity
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Ledgers table
 CREATE TABLE ledgers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     root_hash CHAR(64) NOT NULL,
@@ -15,10 +12,13 @@ CREATE TABLE ledgers (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Index for listing ledgers by creation date
+CREATE INDEX idx_ledgers_created_at ON ledgers(created_at DESC);
+
 -- Entries table (append-only)
 CREATE TABLE entries (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ledger_id UUID NOT NULL REFERENCES ledgers(id),
+    id VARCHAR(128) PRIMARY KEY,
+    ledger_id VARCHAR(64) NOT NULL REFERENCES ledgers(id),
     position BIGINT NOT NULL,
     data JSONB NOT NULL,
     hash CHAR(64) NOT NULL,
@@ -34,24 +34,14 @@ CREATE INDEX idx_entries_ledger_position ON entries(ledger_id, position);
 -- Index for hash lookups
 CREATE INDEX idx_entries_hash ON entries(hash);
 
--- Anchor records for external timestamping
-CREATE TABLE anchors (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ledger_id UUID NOT NULL REFERENCES ledgers(id),
-    root_hash CHAR(64) NOT NULL,
-    tree_size BIGINT NOT NULL,
-    destination VARCHAR(50) NOT NULL,  -- 'bitcoin', 'ethereum', etc.
-    transaction_id VARCHAR(255),
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    confirmed_at TIMESTAMPTZ
-);
+-- Index for listing entries by ledger
+CREATE INDEX idx_entries_ledger_created ON entries(ledger_id, created_at);
 
 -- Idempotency keys for duplicate prevention
 CREATE TABLE idempotency_keys (
     key VARCHAR(128) PRIMARY KEY,
-    ledger_id UUID NOT NULL REFERENCES ledgers(id),
-    entry_id UUID REFERENCES entries(id),
+    ledger_id VARCHAR(64) NOT NULL REFERENCES ledgers(id),
+    entry_id VARCHAR(128) REFERENCES entries(id),
     response JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours'

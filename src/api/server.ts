@@ -10,6 +10,7 @@ import helmet from '@fastify/helmet';
 import { MerkleTree } from '../core/merkle.js';
 import { hashEntry } from '../core/hash.js';
 import { MemoryStorage } from '../storage/memory.js';
+import { PostgresStorage, createPostgresStorage } from '../storage/postgres.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { registerRateLimit, RateLimitTiers } from './middleware/rateLimit.js';
 import { registerLedgerRoutes } from './routes/ledgers.js';
@@ -21,7 +22,7 @@ import type {
   LedgerService,
   HealthResponse
 } from './types.js';
-import type { LedgerMetadata, LedgerEntry, MerkleProof } from '../types.js';
+import type { LedgerMetadata, LedgerEntry, MerkleProof, StorageBackend } from '../types.js';
 
 /**
  * Default API configuration
@@ -31,17 +32,18 @@ const DEFAULT_CONFIG: ApiConfig = {
   host: '0.0.0.0',
   cors: true,
   logging: true,
-  rateLimit: RateLimitTiers.STANDARD
+  rateLimit: RateLimitTiers.STANDARD,
+  storage: 'memory' // 'memory' | 'postgres'
 };
 
 /**
- * In-memory ledger service implementation
+ * Ledger service implementation - works with any storage backend
  */
 class VeilChainService implements LedgerService {
-  private storage: MemoryStorage;
+  private storage: StorageBackend;
   private trees: Map<string, MerkleTree>;
 
-  constructor(storage: MemoryStorage) {
+  constructor(storage: StorageBackend) {
     this.storage = storage;
     this.trees = new Map();
   }
@@ -319,22 +321,53 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     }));
   }
 
-  // Initialize service
-  const storage = new MemoryStorage();
+  // Initialize storage backend
+  let storage: StorageBackend;
+  let storageType = 'memory';
+
+  if (finalConfig.storage === 'postgres' || process.env.DATABASE_URL) {
+    try {
+      const pgStorage = createPostgresStorage();
+      await pgStorage.connect();
+      storage = pgStorage;
+      storageType = 'postgres';
+    } catch (error) {
+      console.warn('Failed to connect to PostgreSQL, falling back to memory storage:', error);
+      storage = new MemoryStorage();
+    }
+  } else {
+    storage = new MemoryStorage();
+  }
+
   const service = new VeilChainService(storage);
 
   // Health check endpoint
   fastify.get('/health', async (_request, reply) => {
     const uptime = process.uptime();
-    const stats = storage.getStats();
+
+    // Get stats based on storage type
+    let stats = { ledgers: 0, totalEntries: 0 };
+    let storageStatus = 'ok';
+
+    if (storageType === 'postgres') {
+      try {
+        const healthy = await (storage as PostgresStorage).healthCheck();
+        storageStatus = healthy ? 'ok' : 'degraded';
+      } catch {
+        storageStatus = 'error';
+      }
+    } else if ('getStats' in storage) {
+      stats = (storage as MemoryStorage).getStats();
+    }
 
     const response: HealthResponse = {
-      status: 'ok',
+      status: storageStatus === 'ok' ? 'ok' : 'degraded',
       version: VERSION,
       uptime,
       timestamp: new Date().toISOString(),
       storage: {
-        status: 'ok',
+        status: storageStatus,
+        type: storageType,
         ledgers: stats.ledgers,
         totalEntries: stats.totalEntries
       }

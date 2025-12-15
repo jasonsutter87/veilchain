@@ -322,44 +322,71 @@ export class PostgresStorage implements StorageBackend {
   }
 
   /**
-   * Create a new ledger
+   * Create ledger metadata (implements StorageBackend interface)
    *
-   * @param id - The ledger ID
-   * @param name - The ledger name
-   * @param description - Optional description
-   * @param initialRootHash - Initial root hash (usually hash of empty string)
-   * @returns The created ledger metadata
+   * @param metadata - The ledger metadata to create
    */
-  async createLedger(
-    id: string,
-    name: string,
-    description?: string,
-    initialRootHash: string = ''
-  ): Promise<LedgerMetadata> {
+  async createLedgerMetadata(metadata: LedgerMetadata): Promise<void> {
+    try {
+      await this.pool.query(
+        `INSERT INTO ledgers (id, name, description, root_hash, entry_count, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          metadata.id,
+          metadata.name,
+          metadata.description,
+          metadata.rootHash,
+          metadata.entryCount.toString(),
+          metadata.createdAt,
+        ]
+      );
+    } catch (error) {
+      // Check for unique constraint violation
+      if (error instanceof Error && 'code' in error && error.code === '23505') {
+        throw new Error(`Ledger with ID ${metadata.id} already exists`);
+      }
+
+      throw new Error(`Failed to create ledger: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * List all ledgers with pagination
+   *
+   * @param options - Pagination options
+   * @returns Array of ledger metadata
+   */
+  async listLedgers(options?: {
+    offset?: number;
+    limit?: number;
+  }): Promise<LedgerMetadata[]> {
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? 100;
+
     try {
       const result: QueryResult = await this.pool.query(
-        `INSERT INTO ledgers (id, name, description, root_hash, entry_count)
-         VALUES ($1, $2, $3, $4, 0)
-         RETURNING id, name, description, root_hash, entry_count, created_at, updated_at`,
-        [id, name, description, initialRootHash]
+        `SELECT l.id, l.name, l.description, l.root_hash, l.entry_count,
+                l.created_at, MAX(e.created_at) as last_entry_at
+         FROM ledgers l
+         LEFT JOIN entries e ON l.id = e.ledger_id
+         GROUP BY l.id
+         ORDER BY l.created_at DESC
+         OFFSET $1
+         LIMIT $2`,
+        [offset, limit]
       );
 
-      const row = result.rows[0];
-      return {
+      return result.rows.map((row) => ({
         id: row.id,
         name: row.name,
         description: row.description,
         rootHash: row.root_hash,
         entryCount: BigInt(row.entry_count),
         createdAt: new Date(row.created_at),
-      };
+        lastEntryAt: row.last_entry_at ? new Date(row.last_entry_at) : undefined,
+      }));
     } catch (error) {
-      // Check for unique constraint violation
-      if (error instanceof Error && 'code' in error && error.code === '23505') {
-        throw new Error(`Ledger with ID ${id} already exists`);
-      }
-
-      throw new Error(`Failed to create ledger: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to list ledgers: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

@@ -246,40 +246,30 @@ POST   /v1/ledgers/:id/anchor         # Trigger manual anchor
 
 ---
 
-## Phase 6: External Anchoring (3-4 weeks)
+## Phase 6: Root Export & Webhooks (2-3 weeks)
 
-### 6.1 Bitcoin Anchoring
-- [ ] **OP_RETURN Transactions**
-  - Batch anchoring (hourly/daily)
-  - Root hash in OP_RETURN data
-  - Transaction proof storage
-
-- [ ] **Cost Optimization**
-  - Fee estimation
-  - Batching across customers
-  - Low-priority transactions
-
-### 6.2 Ethereum Anchoring (Optional)
-- [ ] **Smart Contract**
-  - Minimal anchoring contract
-  - Gas optimization
-  - Multi-root batching
-
-### 6.3 Public Transparency Log
-- [ ] **Public API**
-  - Unauthenticated root access
+### 6.1 Root Hash Export
+- [ ] **Public Root API**
+  - Unauthenticated root access endpoint
   - Historical root retrieval
-  - RSS/Atom feed of anchors
+  - Root hash with timestamp and entry count
 
-- [ ] **Archival**
-  - Archive.org submission
-  - Multiple mirror sites
-  - Newspaper publication (legal admissibility)
+### 6.2 Webhooks
+- [ ] **Root Change Notifications**
+  - Webhook on root hash changes
+  - Configurable batch frequency
+  - Retry with exponential backoff
+
+### 6.3 Export Formats
+- [ ] **Proof Bundles**
+  - Export proof as JSON
+  - Export proof as CBOR (compact)
+  - QR code generation for proofs
 
 ### Deliverables
-- [ ] Bitcoin anchor within 1 hour of request
-- [ ] Public verification without VeilChain account
-- [ ] 5+ independent witnesses per anchor
+- [ ] Public root verification without VeilChain account
+- [ ] Webhook delivery within 1 second
+- [ ] Proof export in multiple formats
 
 ---
 
@@ -320,7 +310,7 @@ POST   /v1/ledgers/:id/anchor         # Trigger manual anchor
 - [ ] **Conceptual Docs**
   - How Merkle trees work
   - Trust model explanation
-  - Anchoring deep dive
+  - External timestamping options
 
 ### Deliverables
 - [ ] SDK test coverage >90%
@@ -475,7 +465,7 @@ POST   /v1/ledgers/:id/anchor         # Trigger manual anchor
 | p99 Latency | <100ms | Real-time |
 | Security Incidents | 0 critical | Ongoing |
 | Audit Findings | 0 high/critical | Per audit |
-| Time to Anchor | <1 hour | Per anchor |
+| Webhook Delivery | <1 second | Per event |
 | Customer Satisfaction | >4.5/5 | Quarterly survey |
 
 ---

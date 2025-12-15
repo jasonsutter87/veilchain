@@ -121,7 +121,8 @@ describe('PostgresStorage', () => {
     it('should provide additional utility methods', () => {
       expect(typeof storage.connect).toBe('function');
       expect(typeof storage.disconnect).toBe('function');
-      expect(typeof storage.createLedger).toBe('function');
+      expect(typeof storage.createLedgerMetadata).toBe('function');
+      expect(typeof storage.listLedgers).toBe('function');
       expect(typeof storage.withTransaction).toBe('function');
       expect(typeof storage.healthCheck).toBe('function');
     });

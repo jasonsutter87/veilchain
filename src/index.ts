@@ -44,8 +44,7 @@ export type {
   AppendOptions,
   AppendResult,
   MerkleNode,
-  StorageBackend,
-  AnchorRecord
+  StorageBackend
 } from './types.js';
 
 // SDK exports

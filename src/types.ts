@@ -145,30 +145,22 @@ export interface StorageBackend {
     limit?: number;
   }): Promise<LedgerEntry[]>;
 
+  /** Create ledger metadata */
+  createLedgerMetadata(metadata: LedgerMetadata): Promise<void>;
+
   /** Get ledger metadata */
   getLedgerMetadata(ledgerId: string): Promise<LedgerMetadata | null>;
 
   /** Update ledger metadata */
   updateLedgerMetadata(ledgerId: string, metadata: Partial<LedgerMetadata>): Promise<void>;
 
+  /** List all ledgers with pagination */
+  listLedgers(options?: {
+    offset?: number;
+    limit?: number;
+  }): Promise<LedgerMetadata[]>;
+
   /** Get all leaf hashes for tree reconstruction */
   getAllLeafHashes(ledgerId: string): Promise<string[]>;
 }
 
-/**
- * Anchor record for external timestamping
- */
-export interface AnchorRecord {
-  /** Root hash that was anchored */
-  rootHash: string;
-  /** Tree size at anchoring */
-  treeSize: bigint;
-  /** Anchor destination (bitcoin, ethereum, etc.) */
-  destination: string;
-  /** Transaction ID or proof */
-  transactionId?: string;
-  /** Timestamp of anchoring */
-  anchoredAt: Date;
-  /** Status of the anchor */
-  status: 'pending' | 'confirmed' | 'failed';
-}

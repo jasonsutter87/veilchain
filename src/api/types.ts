@@ -31,6 +31,8 @@ export interface ApiConfig {
   };
   /** Enable request logging */
   logging?: boolean;
+  /** Storage backend: 'memory' or 'postgres' */
+  storage?: 'memory' | 'postgres';
 }
 
 /**
@@ -153,7 +155,8 @@ export interface HealthResponse {
   uptime: number;
   timestamp: string;
   storage?: {
-    status: 'ok' | 'error';
+    status: string;
+    type?: string;
     ledgers: number;
     totalEntries: number;
   };
@@ -209,6 +212,45 @@ export interface ListLedgersResponse {
   total: number;
   offset: number;
   limit: number;
+}
+
+/**
+ * Request body for batch appending entries
+ */
+export interface BatchAppendRequest<T = unknown> {
+  entries: Array<{
+    data: T;
+    idempotencyKey?: string;
+    metadata?: Record<string, unknown>;
+  }>;
+}
+
+/**
+ * Response for batch append
+ */
+export interface BatchAppendResponse<T = unknown> {
+  results: Array<{
+    success: boolean;
+    entry?: {
+      id: string;
+      position: string;
+      data: T;
+      hash: string;
+      createdAt: string;
+    };
+    proof?: MerkleProof;
+    error?: {
+      code: string;
+      message: string;
+    };
+  }>;
+  summary: {
+    total: number;
+    successful: number;
+    failed: number;
+  };
+  previousRoot: string;
+  newRoot: string;
 }
 
 /**

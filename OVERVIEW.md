@@ -25,7 +25,7 @@ Current solutions are either:
 VeilChain is a **Merkle tree ledger service** that provides:
 - **Append-only storage**: Data can never be modified or deleted
 - **Cryptographic proofs**: Anyone can verify any entry exists
-- **Public roots**: Publish root hashes externally for ultimate trust
+- **Exportable roots**: Take your root hash and timestamp it however you want
 - **No blockchain**: No tokens, no mining, no consensus overhead
 
 ---
@@ -168,7 +168,7 @@ VeilChain is a **Merkle tree ledger service** that provides:
 │  ENTERPRISE     Custom                                          │
 │  ├── Unlimited entries                                          │
 │  ├── Self-hosted option                                         │
-│  ├── Real-time anchoring                                        │
+│  ├── Webhooks on root changes                                   │
 │  ├── Dedicated support                                          │
 │  ├── Unlimited ledgers                                          │
 │  ├── SLA guarantees                                             │
@@ -191,7 +191,6 @@ GET    /v1/ledgers/:id/entries/:eid   # Get entry
 GET    /v1/ledgers/:id/root           # Current root hash
 GET    /v1/ledgers/:id/proof/:eid     # Get inclusion proof
 POST   /v1/verify                     # Verify a proof
-GET    /v1/ledgers/:id/anchors        # List external anchors
 ```
 
 ### SDK Usage
@@ -262,7 +261,7 @@ VeilChain becomes the **vote ledger** in the Trustless Voting System:
 │  3. Voter receives confirmation code + proof                    │
 │                          │                                       │
 │                          ▼                                       │
-│  4. Root hash anchored to Bitcoin/public log                    │
+│  4. Voter receives root hash (can timestamp externally)         │
 │                          │                                       │
 │                          ▼                                       │
 │  5. Anyone can verify:                                          │
@@ -286,8 +285,7 @@ VeilChain becomes the **vote ledger** in the Trustless Voting System:
 ### New Components
 - Sparse Merkle tree implementation
 - Proof generation/verification
-- External anchoring service
-- Real-time root publication
+- Root hash export API
 
 ---
 

@@ -9,6 +9,8 @@ import type {
   AppendEntryRequest,
   AppendEntryResponse,
   GetEntryResponse,
+  BatchAppendRequest,
+  BatchAppendResponse,
   LedgerService
 } from '../types.js';
 
@@ -218,6 +220,168 @@ export async function registerEntryRoutes(
           }
         });
       }
+    }
+  );
+
+  /**
+   * Batch append entries to ledger
+   * POST /v1/ledgers/:id/entries/batch
+   *
+   * Appends multiple entries in a single request for better performance.
+   * Entries are processed sequentially to maintain order.
+   * Partial failures are supported - successful entries remain committed.
+   */
+  fastify.post<{
+    Params: { id: string };
+    Body: BatchAppendRequest;
+    Reply: BatchAppendResponse;
+  }>(
+    '/v1/ledgers/:id/entries/batch',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' }
+          }
+        },
+        body: {
+          type: 'object',
+          required: ['entries'],
+          properties: {
+            entries: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 1000,
+              items: {
+                type: 'object',
+                required: ['data'],
+                properties: {
+                  data: {},
+                  idempotencyKey: { type: 'string' },
+                  metadata: { type: 'object' }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    async (
+      request: FastifyRequest<{
+        Params: { id: string };
+        Body: BatchAppendRequest;
+      }>,
+      reply: FastifyReply
+    ) => {
+      const { id: ledgerId } = request.params;
+      const { entries } = request.body;
+
+      // Validate batch size
+      if (!entries || entries.length === 0) {
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_BATCH',
+            message: 'At least one entry is required'
+          }
+        });
+      }
+
+      if (entries.length > 1000) {
+        return reply.code(400).send({
+          error: {
+            code: 'BATCH_TOO_LARGE',
+            message: 'Maximum batch size is 1000 entries'
+          }
+        });
+      }
+
+      // Check if ledger exists
+      const ledger = await service.getLedger(ledgerId);
+      if (!ledger) {
+        return reply.code(404).send({
+          error: {
+            code: 'LEDGER_NOT_FOUND',
+            message: `Ledger ${ledgerId} not found`
+          }
+        });
+      }
+
+      const results: BatchAppendResponse['results'] = [];
+      let previousRoot = ledger.rootHash;
+      let currentRoot = previousRoot;
+      let successful = 0;
+      let failed = 0;
+
+      // Process entries sequentially to maintain order
+      for (const entryRequest of entries) {
+        try {
+          // Validate entry data
+          if (entryRequest.data === undefined || entryRequest.data === null) {
+            results.push({
+              success: false,
+              error: {
+                code: 'INVALID_DATA',
+                message: 'Entry data is required'
+              }
+            });
+            failed++;
+            continue;
+          }
+
+          const result = await service.appendEntry(ledgerId, entryRequest.data, {
+            idempotencyKey: entryRequest.idempotencyKey,
+            metadata: entryRequest.metadata
+          });
+
+          currentRoot = result.newRoot;
+
+          results.push({
+            success: true,
+            entry: {
+              id: result.entry.id,
+              position: result.entry.position.toString(),
+              data: result.entry.data,
+              hash: result.entry.hash,
+              createdAt: result.entry.createdAt.toISOString()
+            },
+            proof: result.proof
+          });
+          successful++;
+        } catch (error: any) {
+          fastify.log.error(error, 'Error in batch append');
+
+          let errorCode = 'ENTRY_APPEND_FAILED';
+          if (error.message.includes('idempotency')) {
+            errorCode = 'DUPLICATE_ENTRY';
+          }
+
+          results.push({
+            success: false,
+            error: {
+              code: errorCode,
+              message: error.message || 'Failed to append entry'
+            }
+          });
+          failed++;
+        }
+      }
+
+      const response: BatchAppendResponse = {
+        results,
+        summary: {
+          total: entries.length,
+          successful,
+          failed
+        },
+        previousRoot,
+        newRoot: currentRoot
+      };
+
+      // Return 207 Multi-Status if there were partial failures
+      const statusCode = failed > 0 && successful > 0 ? 207 : (failed === entries.length ? 400 : 201);
+      return reply.code(statusCode).send(response);
     }
   );
 
