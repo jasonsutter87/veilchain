@@ -35,7 +35,7 @@ export interface PostgresConfig extends PoolConfig {
  * - Proper error handling and logging
  */
 export class PostgresStorage implements StorageBackend {
-  private pool: Pool;
+  public readonly pool: Pool;
 
   constructor(config: PostgresConfig) {
     // Set sensible defaults for connection pooling

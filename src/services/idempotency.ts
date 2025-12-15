@@ -5,6 +5,8 @@
  * Keys expire after 24 hours to prevent unbounded memory growth.
  */
 
+import type { Pool } from 'pg';
+
 /**
  * Stored idempotency record
  */
@@ -20,28 +22,64 @@ interface IdempotencyRecord {
 }
 
 /**
- * Idempotency key manager
- *
- * Prevents duplicate operations by tracking completed operations
- * with their results. If the same idempotency key is used again
- * within 24 hours, the cached result is returned.
+ * Storage backend for idempotency keys
  */
-export class IdempotencyService {
-  private records: Map<string, IdempotencyRecord> = new Map();
-  private cleanupInterval?: NodeJS.Timeout;
+export interface IdempotencyStorage {
+  get(ledgerId: string, key: string): Promise<unknown | null>;
+  set(ledgerId: string, key: string, result: unknown, expiresAt: Date): Promise<void>;
+  delete(ledgerId: string, key: string): Promise<void>;
+  cleanup(): Promise<void>;
+}
 
-  constructor(private readonly ttlMs: number = 24 * 60 * 60 * 1000) {
-    // Start cleanup job to remove expired keys
-    this.startCleanup();
+/**
+ * PostgreSQL-backed idempotency storage
+ */
+export class PostgresIdempotencyStorage implements IdempotencyStorage {
+  constructor(private readonly pool: Pool) {}
+
+  async get(ledgerId: string, key: string): Promise<unknown | null> {
+    const result = await this.pool.query(
+      `SELECT response
+       FROM idempotency_keys
+       WHERE ledger_id = $1 AND key = $2 AND expires_at > NOW()`,
+      [ledgerId, key]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0].response;
   }
 
-  /**
-   * Check if a key exists and is not expired
-   * @param ledgerId - The ledger ID
-   * @param key - The idempotency key
-   * @returns The cached result if found, null otherwise
-   */
-  get<T>(ledgerId: string, key: string): T | null {
+  async set(ledgerId: string, key: string, result: unknown, expiresAt: Date): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO idempotency_keys (key, ledger_id, response, expires_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (key) DO UPDATE SET response = EXCLUDED.response`,
+      [key, ledgerId, JSON.stringify(result), expiresAt]
+    );
+  }
+
+  async delete(ledgerId: string, key: string): Promise<void> {
+    await this.pool.query(
+      `DELETE FROM idempotency_keys WHERE ledger_id = $1 AND key = $2`,
+      [ledgerId, key]
+    );
+  }
+
+  async cleanup(): Promise<void> {
+    await this.pool.query(`DELETE FROM idempotency_keys WHERE expires_at < NOW()`);
+  }
+}
+
+/**
+ * In-memory idempotency storage
+ */
+export class MemoryIdempotencyStorage implements IdempotencyStorage {
+  private records: Map<string, IdempotencyRecord> = new Map();
+
+  async get(ledgerId: string, key: string): Promise<unknown | null> {
     const fullKey = this.makeKey(ledgerId, key);
     const record = this.records.get(fullKey);
 
@@ -55,42 +93,39 @@ export class IdempotencyService {
       return null;
     }
 
-    return record.result as T;
+    return record.result;
   }
 
-  /**
-   * Store a result with an idempotency key
-   * @param ledgerId - The ledger ID
-   * @param key - The idempotency key
-   * @param result - The operation result to cache
-   */
-  set(ledgerId: string, key: string, result: unknown): void {
+  async set(ledgerId: string, key: string, result: unknown, expiresAt: Date): Promise<void> {
     const fullKey = this.makeKey(ledgerId, key);
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + this.ttlMs);
-
     this.records.set(fullKey, {
       key: fullKey,
       result,
-      createdAt: now,
+      createdAt: new Date(),
       expiresAt
     });
   }
 
-  /**
-   * Remove a specific key
-   * @param ledgerId - The ledger ID
-   * @param key - The idempotency key
-   */
-  delete(ledgerId: string, key: string): void {
+  async delete(ledgerId: string, key: string): Promise<void> {
     const fullKey = this.makeKey(ledgerId, key);
     this.records.delete(fullKey);
   }
 
-  /**
-   * Clear all keys for a ledger
-   * @param ledgerId - The ledger ID
-   */
+  async cleanup(): Promise<void> {
+    const now = new Date();
+    const keysToDelete: string[] = [];
+
+    for (const [key, record] of this.records.entries()) {
+      if (now > record.expiresAt) {
+        keysToDelete.push(key);
+      }
+    }
+
+    for (const key of keysToDelete) {
+      this.records.delete(key);
+    }
+  }
+
   clearLedger(ledgerId: string): void {
     const prefix = `${ledgerId}:`;
     for (const key of this.records.keys()) {
@@ -100,38 +135,81 @@ export class IdempotencyService {
     }
   }
 
-  /**
-   * Clear all keys (for testing)
-   */
   clear(): void {
     this.records.clear();
   }
 
+  private makeKey(ledgerId: string, key: string): string {
+    return `${ledgerId}:${key}`;
+  }
+}
+
+/**
+ * Idempotency key manager
+ *
+ * Prevents duplicate operations by tracking completed operations
+ * with their results. If the same idempotency key is used again
+ * within 24 hours, the cached result is returned.
+ */
+export class IdempotencyService {
+  private cleanupInterval?: NodeJS.Timeout;
+
+  constructor(
+    private readonly storage: IdempotencyStorage,
+    private readonly ttlMs: number = 24 * 60 * 60 * 1000
+  ) {
+    // Start cleanup job to remove expired keys
+    this.startCleanup();
+  }
+
   /**
-   * Get statistics about stored keys
+   * Check if a key exists and is not expired
+   * @param ledgerId - The ledger ID
+   * @param key - The idempotency key
+   * @returns The cached result if found, null otherwise
    */
-  getStats(): {
-    totalKeys: number;
-    expiredKeys: number;
-    activeKeys: number;
-  } {
-    const now = new Date();
-    let expiredKeys = 0;
-    let activeKeys = 0;
+  async get<T>(ledgerId: string, key: string): Promise<T | null> {
+    const result = await this.storage.get(ledgerId, key);
+    return result as T | null;
+  }
 
-    for (const record of this.records.values()) {
-      if (now > record.expiresAt) {
-        expiredKeys++;
-      } else {
-        activeKeys++;
-      }
+  /**
+   * Store a result with an idempotency key
+   * @param ledgerId - The ledger ID
+   * @param key - The idempotency key
+   * @param result - The operation result to cache
+   */
+  async set(ledgerId: string, key: string, result: unknown): Promise<void> {
+    const expiresAt = new Date(Date.now() + this.ttlMs);
+    await this.storage.set(ledgerId, key, result, expiresAt);
+  }
+
+  /**
+   * Remove a specific key
+   * @param ledgerId - The ledger ID
+   * @param key - The idempotency key
+   */
+  async delete(ledgerId: string, key: string): Promise<void> {
+    await this.storage.delete(ledgerId, key);
+  }
+
+  /**
+   * Clear all keys for a ledger (only works with memory storage)
+   * @param ledgerId - The ledger ID
+   */
+  clearLedger(ledgerId: string): void {
+    if (this.storage instanceof MemoryIdempotencyStorage) {
+      this.storage.clearLedger(ledgerId);
     }
+  }
 
-    return {
-      totalKeys: this.records.size,
-      expiredKeys,
-      activeKeys
-    };
+  /**
+   * Clear all keys (only works with memory storage, for testing)
+   */
+  clear(): void {
+    if (this.storage instanceof MemoryIdempotencyStorage) {
+      this.storage.clear();
+    }
   }
 
   /**
@@ -153,19 +231,8 @@ export class IdempotencyService {
   /**
    * Remove expired keys from storage
    */
-  private cleanup(): void {
-    const now = new Date();
-    const keysToDelete: string[] = [];
-
-    for (const [key, record] of this.records.entries()) {
-      if (now > record.expiresAt) {
-        keysToDelete.push(key);
-      }
-    }
-
-    for (const key of keysToDelete) {
-      this.records.delete(key);
-    }
+  private async cleanup(): Promise<void> {
+    await this.storage.cleanup();
   }
 
   /**
@@ -176,12 +243,5 @@ export class IdempotencyService {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = undefined;
     }
-  }
-
-  /**
-   * Create a composite key from ledgerId and idempotency key
-   */
-  private makeKey(ledgerId: string, key: string): string {
-    return `${ledgerId}:${key}`;
   }
 }

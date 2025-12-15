@@ -58,15 +58,14 @@ export class LedgerService {
 
   constructor(
     private readonly storage: StorageBackend,
+    idempotencyService: IdempotencyService,
     options: {
-      /** Custom idempotency service instance */
-      idempotencyService?: IdempotencyService;
       /** Event emitter for webhooks */
       eventEmitter?: EventEmitter;
     } = {}
   ) {
     this.events = (options.eventEmitter as LedgerEventEmitter) || new EventEmitter();
-    this.idempotency = options.idempotencyService || new IdempotencyService();
+    this.idempotency = idempotencyService;
   }
 
   /**
@@ -136,7 +135,7 @@ export class LedgerService {
     try {
       // Check idempotency key
       if (options.idempotencyKey) {
-        const cached = this.idempotency.get<AppendResult<T>>(
+        const cached = await this.idempotency.get<AppendResult<T>>(
           ledgerId,
           options.idempotencyKey
         );
@@ -204,7 +203,7 @@ export class LedgerService {
 
       // Cache for idempotency
       if (options.idempotencyKey) {
-        this.idempotency.set(ledgerId, options.idempotencyKey, result);
+        await this.idempotency.set(ledgerId, options.idempotencyKey, result);
       }
 
       // Emit events

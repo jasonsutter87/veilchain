@@ -49,6 +49,42 @@ export interface ProofVerificationResult {
 }
 
 /**
+ * Batch proof for verifying multiple entries efficiently
+ */
+export interface BatchProof {
+  /** Array of leaf hashes being proven */
+  leaves: string[];
+  /** Array of indices for each leaf */
+  indices: number[];
+  /** Optimized proof path with shared nodes */
+  proof: string[];
+  /** Mapping of which proof nodes apply to which leaves */
+  proofMap: number[][];
+  /** Directions for each proof step */
+  directions: ('left' | 'right')[][];
+  /** Root hash at time of proof generation */
+  root: string;
+}
+
+/**
+ * Consistency proof showing old tree is prefix of new tree
+ */
+export interface ConsistencyProof {
+  /** Old root hash */
+  oldRoot: string;
+  /** Size of old tree */
+  oldSize: number;
+  /** New root hash */
+  newRoot: string;
+  /** Size of new tree */
+  newSize: number;
+  /** Proof path showing consistency */
+  proof: string[];
+  /** Timestamp of proof generation */
+  timestamp: string;
+}
+
+/**
  * A single entry in the ledger
  */
 export interface LedgerEntry<T = unknown> {
@@ -84,6 +120,8 @@ export interface LedgerMetadata {
   entryCount: bigint;
   /** Last entry timestamp */
   lastEntryAt?: Date;
+  /** Optional JSON schema for entry validation */
+  schema?: Record<string, unknown>;
 }
 
 /**
@@ -162,5 +200,33 @@ export interface StorageBackend {
 
   /** Get all leaf hashes for tree reconstruction */
   getAllLeafHashes(ledgerId: string): Promise<string[]>;
+}
+
+/**
+ * Sparse Merkle Tree proof for inclusion or non-inclusion
+ */
+export interface SparseMerkleProof {
+  /** The key being proven */
+  key: string;
+  /** The value at the key (null for non-inclusion proof) */
+  value: string | null;
+  /** Array of sibling hashes along the path to root */
+  siblings: string[];
+  /** Root hash at time of proof generation */
+  root: string;
+  /** Whether this is an inclusion proof (true) or non-inclusion proof (false) */
+  included: boolean;
+}
+
+/**
+ * Serialized Sparse Merkle Tree state
+ */
+export interface SparseMerkleTreeState {
+  /** Map of key hashes to values */
+  nodes: Record<string, string>;
+  /** Current root hash */
+  root: string;
+  /** Tree depth (default 256 for 256-bit key space) */
+  depth: number;
 }
 

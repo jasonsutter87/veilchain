@@ -13,13 +13,21 @@ import type {
   BatchAppendResponse,
   LedgerService
 } from '../types.js';
+import {
+  createEntrySizeValidator,
+  createBatchSizeValidator,
+  schemaValidator,
+  type ValidationConfig,
+  DEFAULT_VALIDATION_CONFIG
+} from '../middleware/validation.js';
 
 /**
  * Register entry routes
  */
 export async function registerEntryRoutes(
   fastify: FastifyInstance,
-  service: LedgerService
+  service: LedgerService,
+  validationConfig: ValidationConfig = DEFAULT_VALIDATION_CONFIG
 ): Promise<void> {
   /**
    * List entries in a ledger
@@ -103,6 +111,7 @@ export async function registerEntryRoutes(
   }>(
     '/v1/ledgers/:id/entries',
     {
+      preValidation: createEntrySizeValidator(validationConfig),
       schema: {
         params: {
           type: 'object',
@@ -169,6 +178,35 @@ export async function registerEntryRoutes(
               message: 'Entry data is required'
             }
           });
+        }
+
+        // Get ledger metadata to check for schema
+        const ledger = await service.getLedger(ledgerId);
+        if (!ledger) {
+          return reply.code(404).send({
+            error: {
+              code: 'LEDGER_NOT_FOUND',
+              message: `Ledger ${ledgerId} not found`
+            }
+          });
+        }
+
+        // Validate against ledger schema if one exists
+        if (ledger.schema) {
+          const validationError = schemaValidator.validate(
+            ledgerId,
+            ledger.schema,
+            data
+          );
+          if (validationError) {
+            return reply.code(400).send({
+              error: {
+                code: validationError.code,
+                message: validationError.message,
+                details: validationError.details
+              }
+            });
+          }
         }
 
         // Append entry
@@ -238,6 +276,7 @@ export async function registerEntryRoutes(
   }>(
     '/v1/ledgers/:id/entries/batch',
     {
+      preValidation: createBatchSizeValidator(validationConfig),
       schema: {
         params: {
           type: 'object',
@@ -328,6 +367,26 @@ export async function registerEntryRoutes(
             });
             failed++;
             continue;
+          }
+
+          // Validate against ledger schema if one exists
+          if (ledger.schema) {
+            const validationError = schemaValidator.validate(
+              ledgerId,
+              ledger.schema,
+              entryRequest.data
+            );
+            if (validationError) {
+              results.push({
+                success: false,
+                error: {
+                  code: validationError.code,
+                  message: validationError.message
+                }
+              });
+              failed++;
+              continue;
+            }
           }
 
           const result = await service.appendEntry(ledgerId, entryRequest.data, {

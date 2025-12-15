@@ -12,13 +12,19 @@ import type {
   GetRootResponse,
   LedgerService
 } from '../types.js';
+import {
+  createLedgerValidator,
+  type ValidationConfig,
+  DEFAULT_VALIDATION_CONFIG
+} from '../middleware/validation.js';
 
 /**
  * Register ledger routes
  */
 export async function registerLedgerRoutes(
   fastify: FastifyInstance,
-  service: LedgerService
+  service: LedgerService,
+  validationConfig: ValidationConfig = DEFAULT_VALIDATION_CONFIG
 ): Promise<void> {
   /**
    * List all ledgers
@@ -84,13 +90,14 @@ export async function registerLedgerRoutes(
   }>(
     '/v1/ledgers',
     {
+      preValidation: createLedgerValidator(validationConfig),
       schema: {
         body: {
           type: 'object',
           required: ['name'],
           properties: {
-            name: { type: 'string', minLength: 1, maxLength: 255 },
-            description: { type: 'string', maxLength: 1000 },
+            name: { type: 'string', minLength: 1, maxLength: validationConfig.maxNameLength },
+            description: { type: 'string', maxLength: validationConfig.maxDescriptionLength },
             schema: { type: 'object' }
           }
         },
@@ -136,7 +143,8 @@ export async function registerLedgerRoutes(
           description: metadata.description,
           rootHash: metadata.rootHash,
           createdAt: metadata.createdAt.toISOString(),
-          entryCount: metadata.entryCount.toString()
+          entryCount: metadata.entryCount.toString(),
+          schema: metadata.schema
         };
 
         return reply.code(201).send(response);
@@ -208,7 +216,8 @@ export async function registerLedgerRoutes(
           rootHash: metadata.rootHash,
           entryCount: metadata.entryCount.toString(),
           createdAt: metadata.createdAt.toISOString(),
-          lastEntryAt: metadata.lastEntryAt?.toISOString()
+          lastEntryAt: metadata.lastEntryAt?.toISOString(),
+          schema: metadata.schema
         };
 
         return reply.send(response);

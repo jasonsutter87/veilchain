@@ -8,6 +8,7 @@
 
 // Core exports
 export { MerkleTree } from './core/merkle.js';
+export { SparseMerkleTree } from './core/sparse-merkle.js';
 export {
   sha256,
   sha256Buffer,
@@ -44,7 +45,9 @@ export type {
   AppendOptions,
   AppendResult,
   MerkleNode,
-  StorageBackend
+  StorageBackend,
+  SparseMerkleProof,
+  SparseMerkleTreeState
 } from './types.js';
 
 // SDK exports

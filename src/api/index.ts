@@ -20,7 +20,9 @@ export {
 export {
   registerRateLimit,
   createEndpointRateLimit,
-  RateLimitTiers
+  RateLimitTiers,
+  EndpointRateLimits,
+  getDailyLimitStats
 } from './middleware/rateLimit.js';
 
 // Route exports
@@ -31,6 +33,7 @@ export { registerProofRoutes } from './routes/proofs.js';
 // Type exports
 export type {
   ApiConfig,
+  RateLimitTier,
   CreateLedgerRequest,
   CreateLedgerResponse,
   GetLedgerResponse,
@@ -48,4 +51,4 @@ export type {
 } from './types.js';
 
 export type { AuthConfig } from './middleware/auth.js';
-export type { RateLimitConfig } from './middleware/rateLimit.js';
+export type { RateLimitConfig, RateLimitTierConfig } from './middleware/rateLimit.js';

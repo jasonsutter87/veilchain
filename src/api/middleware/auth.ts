@@ -16,6 +16,8 @@ export interface AuthConfig {
   headerName?: string;
   /** Allow unauthenticated health checks */
   allowHealthCheck?: boolean;
+  /** Allow unauthenticated public routes */
+  skipPublicRoutes?: boolean;
 }
 
 /**
@@ -25,7 +27,8 @@ export function createAuthMiddleware(config: AuthConfig = {}) {
   const {
     apiKey,
     headerName = 'x-api-key',
-    allowHealthCheck = true
+    allowHealthCheck = true,
+    skipPublicRoutes = false
   } = config;
 
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
@@ -36,6 +39,11 @@ export function createAuthMiddleware(config: AuthConfig = {}) {
 
     // Allow health check endpoint without authentication
     if (allowHealthCheck && request.url === '/health') {
+      return;
+    }
+
+    // Allow public routes without authentication
+    if (skipPublicRoutes && request.url.startsWith('/v1/public/')) {
       return;
     }
 

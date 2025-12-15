@@ -11,18 +11,25 @@ import { MerkleTree } from '../core/merkle.js';
 import { hashEntry } from '../core/hash.js';
 import { MemoryStorage } from '../storage/memory.js';
 import { PostgresStorage, createPostgresStorage } from '../storage/postgres.js';
+import {
+  IdempotencyService,
+  PostgresIdempotencyStorage,
+  MemoryIdempotencyStorage
+} from '../services/idempotency.js';
 import { createAuthMiddleware } from './middleware/auth.js';
-import { registerRateLimit, RateLimitTiers } from './middleware/rateLimit.js';
+import { registerRateLimit } from './middleware/rateLimit.js';
 import { registerLedgerRoutes } from './routes/ledgers.js';
 import { registerEntryRoutes } from './routes/entries.js';
 import { registerProofRoutes } from './routes/proofs.js';
+import { registerPublicRoutes } from './routes/public.js';
+import { DEFAULT_VALIDATION_CONFIG, type ValidationConfig } from './middleware/validation.js';
 import { VERSION } from '../index.js';
 import type {
   ApiConfig,
   LedgerService,
   HealthResponse
 } from './types.js';
-import type { LedgerMetadata, LedgerEntry, MerkleProof, StorageBackend } from '../types.js';
+import type { LedgerMetadata, LedgerEntry, MerkleProof, StorageBackend, AppendResult } from '../types.js';
 
 /**
  * Default API configuration
@@ -32,7 +39,10 @@ const DEFAULT_CONFIG: ApiConfig = {
   host: '0.0.0.0',
   cors: true,
   logging: true,
-  rateLimit: RateLimitTiers.STANDARD,
+  rateLimit: {
+    tier: 'STARTER', // Default to STARTER tier (100 req/sec, 50k/day)
+    enableEndpointLimits: true // Enable stricter limits for write operations
+  },
   storage: 'memory' // 'memory' | 'postgres'
 };
 
@@ -42,9 +52,11 @@ const DEFAULT_CONFIG: ApiConfig = {
 class VeilChainService implements LedgerService {
   private storage: StorageBackend;
   private trees: Map<string, MerkleTree>;
+  private idempotency: IdempotencyService;
 
-  constructor(storage: StorageBackend) {
+  constructor(storage: StorageBackend, idempotency: IdempotencyService) {
     this.storage = storage;
+    this.idempotency = idempotency;
     this.trees = new Map();
   }
 
@@ -66,7 +78,8 @@ class VeilChainService implements LedgerService {
       description: options.description,
       createdAt: now,
       rootHash: tree.root,
-      entryCount: 0n
+      entryCount: 0n,
+      schema: options.schema
     };
 
     await this.storage.createLedgerMetadata(metadata);
@@ -105,7 +118,7 @@ class VeilChainService implements LedgerService {
   async appendEntry<T = unknown>(
     ledgerId: string,
     data: T,
-    _options?: {
+    options?: {
       idempotencyKey?: string;
       metadata?: Record<string, unknown>;
     }
@@ -115,6 +128,17 @@ class VeilChainService implements LedgerService {
     previousRoot: string;
     newRoot: string;
   }> {
+    // Check idempotency key
+    if (options?.idempotencyKey) {
+      const cached = await this.idempotency.get<AppendResult<T>>(
+        ledgerId,
+        options.idempotencyKey
+      );
+      if (cached) {
+        return cached;
+      }
+    }
+
     // Get or load tree
     let tree = this.trees.get(ledgerId);
     if (!tree) {
@@ -156,12 +180,19 @@ class VeilChainService implements LedgerService {
       lastEntryAt: now
     });
 
-    return {
+    const result = {
       entry,
       proof,
       previousRoot,
       newRoot
     };
+
+    // Cache for idempotency
+    if (options?.idempotencyKey) {
+      await this.idempotency.set(ledgerId, options.idempotencyKey, result);
+    }
+
+    return result;
   }
 
   /**
@@ -305,7 +336,7 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     });
   }
 
-  // Register rate limiting
+  // Register rate limiting (applies to all routes including public ones)
   if (finalConfig.rateLimit) {
     await registerRateLimit(fastify, {
       ...finalConfig.rateLimit,
@@ -313,21 +344,14 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     });
   }
 
-  // Register authentication
-  if (finalConfig.apiKey) {
-    fastify.addHook('onRequest', createAuthMiddleware({
-      apiKey: finalConfig.apiKey,
-      allowHealthCheck: true
-    }));
-  }
-
   // Initialize storage backend
   let storage: StorageBackend;
   let storageType = 'memory';
+  let pgStorage: PostgresStorage | null = null;
 
   if (finalConfig.storage === 'postgres' || process.env.DATABASE_URL) {
     try {
-      const pgStorage = createPostgresStorage();
+      pgStorage = createPostgresStorage();
       await pgStorage.connect();
       storage = pgStorage;
       storageType = 'postgres';
@@ -339,7 +363,29 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     storage = new MemoryStorage();
   }
 
-  const service = new VeilChainService(storage);
+  // Initialize idempotency service
+  let idempotencyService: IdempotencyService;
+  if (storageType === 'postgres' && pgStorage) {
+    const idempotencyStorage = new PostgresIdempotencyStorage(pgStorage.pool);
+    idempotencyService = new IdempotencyService(idempotencyStorage);
+  } else {
+    const idempotencyStorage = new MemoryIdempotencyStorage();
+    idempotencyService = new IdempotencyService(idempotencyStorage);
+  }
+
+  const service = new VeilChainService(storage, idempotencyService);
+
+  // Register public routes first (before authentication)
+  await registerPublicRoutes(fastify, service);
+
+  // Register authentication (skips public routes and health check)
+  if (finalConfig.apiKey) {
+    fastify.addHook('onRequest', createAuthMiddleware({
+      apiKey: finalConfig.apiKey,
+      allowHealthCheck: true,
+      skipPublicRoutes: true
+    }));
+  }
 
   // Health check endpoint
   fastify.get('/health', async (_request, reply) => {
@@ -376,9 +422,15 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     return reply.send(response);
   });
 
+  // Prepare validation config
+  const validationConfig: ValidationConfig = {
+    ...DEFAULT_VALIDATION_CONFIG,
+    ...finalConfig.validation
+  };
+
   // Register API routes
-  await registerLedgerRoutes(fastify, service);
-  await registerEntryRoutes(fastify, service);
+  await registerLedgerRoutes(fastify, service, validationConfig);
+  await registerEntryRoutes(fastify, service, validationConfig);
   await registerProofRoutes(fastify, service);
 
   // 404 handler

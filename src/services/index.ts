@@ -6,5 +6,10 @@
  */
 
 export { LedgerService } from './ledger.js';
-export { IdempotencyService } from './idempotency.js';
+export {
+  IdempotencyService,
+  PostgresIdempotencyStorage,
+  MemoryIdempotencyStorage
+} from './idempotency.js';
+export type { IdempotencyStorage } from './idempotency.js';
 export type { LedgerEvents, LedgerEventEmitter } from './ledger.js';
