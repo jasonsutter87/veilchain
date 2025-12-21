@@ -44,6 +44,9 @@ import { getCorsConfig, getHelmetConfig, applySecurityConfig } from './middlewar
 import { registerRequestLogger } from './middleware/requestLogger.js';
 import { createAnomalyDetectionService, type AnomalyDetectionService } from '../services/anomaly.js';
 import { createIpReputationService, type IpReputationService } from '../services/ipReputation.js';
+
+// Phase 9: Monitoring
+import { registerMetricsMiddleware, updateDbPoolMetrics } from './middleware/metrics.js';
 import type {
   ApiConfig,
   LedgerService,
@@ -436,9 +439,19 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
 
     // Register request logging with PII redaction
     registerRequestLogger(fastify, {
-      skipRoutes: ['/health'],
+      skipRoutes: ['/health', '/metrics'],
       slowRequestThreshold: 3000,
     });
+
+    // Register Prometheus metrics
+    registerMetricsMiddleware(fastify);
+
+    // Update database pool metrics periodically
+    setInterval(() => {
+      if (pgStorage) {
+        updateDbPoolMetrics(pgStorage.pool);
+      }
+    }, 15000);
 
     // Only create AuthService if JWT keys are configured
     if (process.env.JWT_PRIVATE_KEY && process.env.JWT_PUBLIC_KEY) {

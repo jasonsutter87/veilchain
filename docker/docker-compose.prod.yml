@@ -1,0 +1,259 @@
+version: '3.8'
+
+# VeilChain Production Docker Compose
+# Includes: API, PostgreSQL, Redis, Prometheus, Grafana, and backup services
+
+services:
+  # =============================================================
+  # VeilChain API
+  # =============================================================
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://veilchain:${DB_PASSWORD}@postgres:5432/veilchain
+      REDIS_URL: redis://redis:6379
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      API_KEY: ${API_KEY}
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - veilchain-network
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=3000"
+      - "prometheus.path=/metrics"
+
+  # =============================================================
+  # PostgreSQL Database
+  # =============================================================
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: veilchain
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: veilchain
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./postgres-backup:/backup
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veilchain -d veilchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    networks:
+      - veilchain-network
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=1GB"
+      - "-c"
+      - "effective_cache_size=3GB"
+      - "-c"
+      - "maintenance_work_mem=256MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "work_mem=10MB"
+      - "-c"
+      - "min_wal_size=1GB"
+      - "-c"
+      - "max_wal_size=4GB"
+      - "-c"
+      - "max_worker_processes=4"
+      - "-c"
+      - "max_parallel_workers_per_gather=2"
+      - "-c"
+      - "max_parallel_workers=4"
+      - "-c"
+      - "log_statement=ddl"
+      - "-c"
+      - "log_min_duration_statement=1000"
+
+  # =============================================================
+  # Redis Cache
+  # =============================================================
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - veilchain-network
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  # =============================================================
+  # Prometheus Monitoring
+  # =============================================================
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - veilchain-network
+    depends_on:
+      - api
+
+  # =============================================================
+  # Grafana Dashboard
+  # =============================================================
+  grafana:
+    image: grafana/grafana:10.2.2
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SERVER_ROOT_URL: ${GRAFANA_URL:-http://localhost:3001}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - veilchain-network
+    depends_on:
+      - prometheus
+
+  # =============================================================
+  # PostgreSQL Backup Service
+  # =============================================================
+  backup:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: veilchain
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGHOST: postgres
+      PGUSER: veilchain
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: veilchain
+    volumes:
+      - ./postgres-backup:/backup
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["while true; do /backup.sh; sleep 86400; done"]
+    networks:
+      - veilchain-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # =============================================================
+  # PostgreSQL Exporter (for Prometheus)
+  # =============================================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    restart: always
+    environment:
+      DATA_SOURCE_NAME: "postgresql://veilchain:${DB_PASSWORD}@postgres:5432/veilchain?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - veilchain-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # =============================================================
+  # Redis Exporter (for Prometheus)
+  # =============================================================
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    restart: always
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - veilchain-network
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  veilchain-network:
+    driver: bridge
