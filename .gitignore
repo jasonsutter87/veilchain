@@ -35,3 +35,16 @@ npm-debug.log*
 
 # Optional eslint cache
 .eslintcache
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+.venv/
