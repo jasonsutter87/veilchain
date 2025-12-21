@@ -13,6 +13,7 @@ import type {
   BatchAppendResponse,
   LedgerService
 } from '../types.js';
+import type { AuditService } from '../../services/audit.js';
 import {
   createEntrySizeValidator,
   createBatchSizeValidator,
@@ -20,6 +21,7 @@ import {
   type ValidationConfig,
   DEFAULT_VALIDATION_CONFIG
 } from '../middleware/validation.js';
+import { getAuthContext } from '../middleware/jwt.js';
 
 /**
  * Register entry routes
@@ -27,7 +29,8 @@ import {
 export async function registerEntryRoutes(
   fastify: FastifyInstance,
   service: LedgerService,
-  validationConfig: ValidationConfig = DEFAULT_VALIDATION_CONFIG
+  validationConfig: ValidationConfig = DEFAULT_VALIDATION_CONFIG,
+  auditService?: AuditService
 ): Promise<void> {
   /**
    * List entries in a ledger
@@ -214,6 +217,25 @@ export async function registerEntryRoutes(
           idempotencyKey,
           metadata
         });
+
+        // Audit log
+        if (auditService) {
+          const auth = getAuthContext(request);
+          await auditService.log({
+            userId: auth?.userId,
+            apiKeyId: auth?.apiKeyId,
+            action: 'append_entry',
+            resourceType: 'entry',
+            resourceId: result.entry.id,
+            details: {
+              ledgerId,
+              position: result.entry.position.toString(),
+              hash: result.entry.hash,
+            },
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'],
+          });
+        }
 
         const response: AppendEntryResponse = {
           entry: {
@@ -425,6 +447,27 @@ export async function registerEntryRoutes(
           });
           failed++;
         }
+      }
+
+      // Audit log batch append
+      if (auditService && successful > 0) {
+        const auth = getAuthContext(request);
+        await auditService.log({
+          userId: auth?.userId,
+          apiKeyId: auth?.apiKeyId,
+          action: 'batch_append_entries',
+          resourceType: 'ledger',
+          resourceId: ledgerId,
+          details: {
+            total: entries.length,
+            successful,
+            failed,
+            previousRoot,
+            newRoot: currentRoot,
+          },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
       }
 
       const response: BatchAppendResponse = {

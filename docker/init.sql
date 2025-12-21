@@ -243,3 +243,202 @@ BEGIN
     DELETE FROM oauth_states WHERE expires_at < NOW();
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================
+-- VeilChain Phase 5: Security & Abuse Detection
+-- ============================================
+
+-- Usage metrics for rate limiting and anomaly detection
+CREATE TABLE usage_metrics (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) REFERENCES users(id),
+    api_key_id VARCHAR(64) REFERENCES api_keys(id),
+    ip_address INET NOT NULL,
+    endpoint VARCHAR(255) NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    status_code SMALLINT,
+    response_time_ms INTEGER,
+    request_size INTEGER,
+    response_size INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- At least one identifier required
+    CONSTRAINT usage_has_identifier CHECK (user_id IS NOT NULL OR api_key_id IS NOT NULL OR ip_address IS NOT NULL)
+);
+
+-- Indexes for efficient querying
+CREATE INDEX idx_usage_metrics_user ON usage_metrics(user_id, created_at DESC);
+CREATE INDEX idx_usage_metrics_api_key ON usage_metrics(api_key_id, created_at DESC);
+CREATE INDEX idx_usage_metrics_ip ON usage_metrics(ip_address, created_at DESC);
+CREATE INDEX idx_usage_metrics_endpoint ON usage_metrics(endpoint, created_at DESC);
+CREATE INDEX idx_usage_metrics_created ON usage_metrics(created_at DESC);
+
+-- Partitioning hint: Consider partitioning by created_at for high-volume deployments
+
+-- Aggregated usage stats (hourly rollups)
+CREATE TABLE usage_stats_hourly (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) REFERENCES users(id),
+    api_key_id VARCHAR(64) REFERENCES api_keys(id),
+    hour_bucket TIMESTAMPTZ NOT NULL,
+    endpoint VARCHAR(255),
+    request_count BIGINT NOT NULL DEFAULT 0,
+    error_count BIGINT NOT NULL DEFAULT 0,
+    avg_response_time_ms REAL,
+    p95_response_time_ms INTEGER,
+    total_request_size BIGINT DEFAULT 0,
+    total_response_size BIGINT DEFAULT 0,
+    unique_ips INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT unique_hourly_stat UNIQUE (user_id, api_key_id, hour_bucket, endpoint)
+);
+
+CREATE INDEX idx_usage_stats_hourly_user ON usage_stats_hourly(user_id, hour_bucket DESC);
+CREATE INDEX idx_usage_stats_hourly_bucket ON usage_stats_hourly(hour_bucket DESC);
+
+-- IP reputation tracking
+CREATE TABLE ip_reputation (
+    ip_address INET PRIMARY KEY,
+    reputation_score INTEGER NOT NULL DEFAULT 100,  -- 0-100, lower is worse
+    risk_level VARCHAR(16) NOT NULL DEFAULT 'low',  -- low, medium, high, critical
+    is_blocked BOOLEAN DEFAULT FALSE,
+    is_vpn BOOLEAN,
+    is_proxy BOOLEAN,
+    is_tor BOOLEAN,
+    is_datacenter BOOLEAN,
+    country_code CHAR(2),
+    asn VARCHAR(64),
+    asn_org VARCHAR(255),
+
+    -- Abuse indicators
+    failed_auth_count INTEGER DEFAULT 0,
+    rate_limit_hits INTEGER DEFAULT 0,
+    suspicious_activity_count INTEGER DEFAULT 0,
+    abuse_reports INTEGER DEFAULT 0,
+
+    -- Timestamps
+    first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    blocked_at TIMESTAMPTZ,
+    blocked_reason VARCHAR(255),
+    blocked_until TIMESTAMPTZ,
+
+    -- Metadata
+    notes TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_ip_reputation_score ON ip_reputation(reputation_score);
+CREATE INDEX idx_ip_reputation_risk ON ip_reputation(risk_level);
+CREATE INDEX idx_ip_reputation_blocked ON ip_reputation(is_blocked) WHERE is_blocked = TRUE;
+CREATE INDEX idx_ip_reputation_last_seen ON ip_reputation(last_seen_at DESC);
+
+-- Trigger for ip_reputation updated_at
+CREATE TRIGGER update_ip_reputation_updated_at
+BEFORE UPDATE ON ip_reputation
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Security events (suspicious activity tracking)
+CREATE TABLE security_events (
+    id VARCHAR(64) PRIMARY KEY,
+    event_type VARCHAR(64) NOT NULL,  -- 'failed_login', 'rate_limit_exceeded', 'suspicious_pattern', etc.
+    severity VARCHAR(16) NOT NULL,     -- 'info', 'warning', 'high', 'critical'
+    user_id VARCHAR(64) REFERENCES users(id),
+    api_key_id VARCHAR(64) REFERENCES api_keys(id),
+    ip_address INET,
+    endpoint VARCHAR(255),
+    description TEXT,
+    details JSONB,
+    resolved BOOLEAN DEFAULT FALSE,
+    resolved_at TIMESTAMPTZ,
+    resolved_by VARCHAR(64) REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_security_events_type ON security_events(event_type, created_at DESC);
+CREATE INDEX idx_security_events_severity ON security_events(severity, created_at DESC);
+CREATE INDEX idx_security_events_user ON security_events(user_id, created_at DESC);
+CREATE INDEX idx_security_events_ip ON security_events(ip_address, created_at DESC);
+CREATE INDEX idx_security_events_unresolved ON security_events(resolved, created_at DESC) WHERE resolved = FALSE;
+
+-- Prevent modifications to security_events (append-only)
+CREATE TRIGGER enforce_security_events_append_only
+BEFORE UPDATE OR DELETE ON security_events
+FOR EACH ROW EXECUTE FUNCTION prevent_entry_modification();
+
+-- Failed authentication attempts (for brute force detection)
+CREATE TABLE failed_auth_attempts (
+    id VARCHAR(64) PRIMARY KEY,
+    ip_address INET NOT NULL,
+    email VARCHAR(255),
+    user_id VARCHAR(64) REFERENCES users(id),
+    attempt_type VARCHAR(32) NOT NULL,  -- 'login', 'api_key', 'token_refresh'
+    failure_reason VARCHAR(64),
+    user_agent TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_failed_auth_ip ON failed_auth_attempts(ip_address, created_at DESC);
+CREATE INDEX idx_failed_auth_email ON failed_auth_attempts(email, created_at DESC);
+CREATE INDEX idx_failed_auth_created ON failed_auth_attempts(created_at DESC);
+
+-- IP blocklist (manual and automatic blocks)
+CREATE TABLE ip_blocklist (
+    ip_address INET PRIMARY KEY,
+    block_type VARCHAR(32) NOT NULL,  -- 'manual', 'auto_brute_force', 'auto_rate_limit', 'auto_abuse'
+    reason VARCHAR(255),
+    blocked_by VARCHAR(64) REFERENCES users(id),  -- NULL for automatic blocks
+    blocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,  -- NULL for permanent blocks
+    metadata JSONB
+);
+
+CREATE INDEX idx_ip_blocklist_type ON ip_blocklist(block_type);
+CREATE INDEX idx_ip_blocklist_expires ON ip_blocklist(expires_at) WHERE expires_at IS NOT NULL;
+
+-- Cleanup function for security data
+CREATE OR REPLACE FUNCTION cleanup_security_data()
+RETURNS void AS $$
+BEGIN
+    -- Remove old usage metrics (keep 30 days)
+    DELETE FROM usage_metrics WHERE created_at < NOW() - INTERVAL '30 days';
+
+    -- Remove old failed auth attempts (keep 7 days)
+    DELETE FROM failed_auth_attempts WHERE created_at < NOW() - INTERVAL '7 days';
+
+    -- Remove expired IP blocks
+    DELETE FROM ip_blocklist WHERE expires_at IS NOT NULL AND expires_at < NOW();
+
+    -- Archive old hourly stats (keep 90 days in main table)
+    DELETE FROM usage_stats_hourly WHERE hour_bucket < NOW() - INTERVAL '90 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to calculate IP reputation score
+CREATE OR REPLACE FUNCTION calculate_ip_reputation(p_ip INET)
+RETURNS INTEGER AS $$
+DECLARE
+    v_score INTEGER := 100;
+    v_failed_auths INTEGER;
+    v_rate_limits INTEGER;
+    v_suspicious INTEGER;
+BEGIN
+    -- Get current counts
+    SELECT
+        COALESCE(failed_auth_count, 0),
+        COALESCE(rate_limit_hits, 0),
+        COALESCE(suspicious_activity_count, 0)
+    INTO v_failed_auths, v_rate_limits, v_suspicious
+    FROM ip_reputation
+    WHERE ip_address = p_ip;
+
+    -- Deduct points for bad behavior
+    v_score := v_score - (v_failed_auths * 5);   -- -5 per failed auth
+    v_score := v_score - (v_rate_limits * 2);    -- -2 per rate limit hit
+    v_score := v_score - (v_suspicious * 10);    -- -10 per suspicious activity
+
+    -- Clamp to 0-100
+    RETURN GREATEST(0, LEAST(100, v_score));
+END;
+$$ LANGUAGE plpgsql;

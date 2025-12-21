@@ -34,6 +34,14 @@ import { registerUserRoutes } from './routes/users.js';
 import { registerPermissionRoutes } from './routes/permissions.js';
 import { DEFAULT_VALIDATION_CONFIG, type ValidationConfig } from './middleware/validation.js';
 import { VERSION } from '../index.js';
+
+// Phase 5: Security enhancements
+import { createContentTypeMiddleware, createBodySizeMiddleware } from './middleware/contentType.js';
+import { createSanitizationMiddleware } from './middleware/sanitization.js';
+import { getCorsConfig, getHelmetConfig, applySecurityConfig } from './middleware/security.js';
+import { registerRequestLogger } from './middleware/requestLogger.js';
+import { createAnomalyDetectionService, type AnomalyDetectionService } from '../services/anomaly.js';
+import { createIpReputationService, type IpReputationService } from '../services/ipReputation.js';
 import type {
   ApiConfig,
   LedgerService,
@@ -333,18 +341,27 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     requestIdLogLabel: 'reqId'
   });
 
-  // Register security plugins
-  await fastify.register(helmet, {
-    contentSecurityPolicy: false // Allow JSON API
-  });
+  // Register security plugins with enhanced configuration
+  await fastify.register(helmet, getHelmetConfig());
 
-  // Register CORS
+  // Register CORS with production-ready configuration
   if (finalConfig.cors) {
-    await fastify.register(cors, {
-      origin: true, // Allow all origins (configure for production)
-      credentials: true
-    });
+    await fastify.register(cors, getCorsConfig());
   }
+
+  // Apply security headers and validation
+  await applySecurityConfig(fastify);
+
+  // Content-Type validation middleware
+  fastify.addHook('onRequest', createContentTypeMiddleware());
+
+  // Body size validation middleware (50MB default)
+  fastify.addHook('onRequest', createBodySizeMiddleware());
+
+  // Input sanitization middleware
+  fastify.addHook('preHandler', createSanitizationMiddleware({
+    strict: process.env.NODE_ENV === 'production',
+  }));
 
   // Register rate limiting (applies to all routes including public ones)
   if (finalConfig.rateLimit) {
@@ -391,12 +408,29 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   let authService: AuthService | undefined;
   let apiKeyService: ApiKeyService | undefined;
   let permissionService: PermissionService | undefined;
+  // Phase 5: Security services - stored on fastify instance for route access
+  let anomalyService: AnomalyDetectionService | undefined;
+  let ipReputationService: IpReputationService | undefined;
 
   if (storageType === 'postgres' && pgStorage) {
     userService = new UserService(pgStorage.pool);
     auditService = new AuditService(pgStorage.pool);
     apiKeyService = new ApiKeyService(pgStorage.pool, auditService);
     permissionService = new PermissionService(pgStorage.pool, auditService);
+
+    // Phase 5: Security services
+    anomalyService = createAnomalyDetectionService(pgStorage.pool);
+    ipReputationService = createIpReputationService(pgStorage.pool);
+
+    // Decorate fastify with security services for route access
+    fastify.decorate('anomalyService', anomalyService);
+    fastify.decorate('ipReputationService', ipReputationService);
+
+    // Register request logging with PII redaction
+    registerRequestLogger(fastify, {
+      skipRoutes: ['/health'],
+      slowRequestThreshold: 3000,
+    });
 
     // Only create AuthService if JWT keys are configured
     if (process.env.JWT_PRIVATE_KEY && process.env.JWT_PUBLIC_KEY) {
@@ -507,9 +541,9 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     ...finalConfig.validation
   };
 
-  // Register API routes
-  await registerLedgerRoutes(fastify, service, validationConfig);
-  await registerEntryRoutes(fastify, service, validationConfig);
+  // Register API routes (with audit service for ledger operations)
+  await registerLedgerRoutes(fastify, service, validationConfig, auditService);
+  await registerEntryRoutes(fastify, service, validationConfig, auditService);
   await registerProofRoutes(fastify, service);
 
   // Register auth-related routes (only if auth services are available)

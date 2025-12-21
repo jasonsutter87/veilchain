@@ -12,11 +12,13 @@ import type {
   GetRootResponse,
   LedgerService
 } from '../types.js';
+import type { AuditService } from '../../services/audit.js';
 import {
   createLedgerValidator,
   type ValidationConfig,
   DEFAULT_VALIDATION_CONFIG
 } from '../middleware/validation.js';
+import { getAuthContext } from '../middleware/jwt.js';
 
 /**
  * Register ledger routes
@@ -24,7 +26,8 @@ import {
 export async function registerLedgerRoutes(
   fastify: FastifyInstance,
   service: LedgerService,
-  validationConfig: ValidationConfig = DEFAULT_VALIDATION_CONFIG
+  validationConfig: ValidationConfig = DEFAULT_VALIDATION_CONFIG,
+  auditService?: AuditService
 ): Promise<void> {
   /**
    * List all ledgers
@@ -136,6 +139,21 @@ export async function registerLedgerRoutes(
           description: description?.trim(),
           schema
         });
+
+        // Audit log
+        if (auditService) {
+          const auth = getAuthContext(request);
+          await auditService.log({
+            userId: auth?.userId,
+            apiKeyId: auth?.apiKeyId,
+            action: 'create_ledger',
+            resourceType: 'ledger',
+            resourceId: metadata.id,
+            details: { name: metadata.name },
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'],
+          });
+        }
 
         const response: CreateLedgerResponse = {
           id: metadata.id,

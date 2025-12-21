@@ -369,6 +369,7 @@ export type AuditAction =
   | 'create_ledger'
   | 'delete_ledger'
   | 'append_entry'
+  | 'batch_append_entries'
   | 'create_api_key'
   | 'revoke_api_key'
   | 'grant_permission'
