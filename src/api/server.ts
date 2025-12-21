@@ -32,6 +32,8 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerApiKeyRoutes } from './routes/apiKeys.js';
 import { registerUserRoutes } from './routes/users.js';
 import { registerPermissionRoutes } from './routes/permissions.js';
+import { registerWebhookRoutes } from './routes/webhooks.js';
+import { createWebhookService, type WebhookService } from '../services/webhook.js';
 import { DEFAULT_VALIDATION_CONFIG, type ValidationConfig } from './middleware/validation.js';
 import { VERSION } from '../index.js';
 
@@ -411,6 +413,8 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   // Phase 5: Security services - stored on fastify instance for route access
   let anomalyService: AnomalyDetectionService | undefined;
   let ipReputationService: IpReputationService | undefined;
+  // Phase 6: Webhooks
+  let webhookService: WebhookService | undefined;
 
   if (storageType === 'postgres' && pgStorage) {
     userService = new UserService(pgStorage.pool);
@@ -425,6 +429,10 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     // Decorate fastify with security services for route access
     fastify.decorate('anomalyService', anomalyService);
     fastify.decorate('ipReputationService', ipReputationService);
+
+    // Phase 6: Webhook service
+    webhookService = createWebhookService(pgStorage.pool);
+    fastify.decorate('webhookService', webhookService);
 
     // Register request logging with PII redaction
     registerRequestLogger(fastify, {
@@ -462,7 +470,7 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   }
 
   // Register public routes first (before authentication)
-  await registerPublicRoutes(fastify, service);
+  await registerPublicRoutes(fastify, service, pgStorage?.pool);
 
   // Register auth routes (before authentication middleware)
   if (authService && userService) {
@@ -557,6 +565,11 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
 
   if (userService && auditService && permissionService && pgStorage) {
     await registerUserRoutes(fastify, userService, auditService, permissionService, pgStorage.pool);
+  }
+
+  // Register webhook routes (only if webhook service is available)
+  if (webhookService) {
+    await registerWebhookRoutes(fastify, webhookService);
   }
 
   // 404 handler

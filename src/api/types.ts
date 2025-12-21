@@ -151,6 +151,7 @@ export interface GetProofResponse {
     position: string;
     hash: string;
   };
+  verificationUrl?: string;
 }
 
 /**

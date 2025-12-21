@@ -442,3 +442,94 @@ BEGIN
     RETURN GREATEST(0, LEAST(100, v_score));
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================
+-- VeilChain Phase 6: Webhooks & Root History
+-- ============================================
+
+-- Root history (snapshots of root hash over time)
+CREATE TABLE root_history (
+    id VARCHAR(64) PRIMARY KEY,
+    ledger_id VARCHAR(64) NOT NULL REFERENCES ledgers(id) ON DELETE CASCADE,
+    root_hash CHAR(64) NOT NULL,
+    entry_count BIGINT NOT NULL,
+    signature TEXT,                 -- Optional RSA signature of root hash
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_root_history_ledger ON root_history(ledger_id, created_at DESC);
+CREATE INDEX idx_root_history_hash ON root_history(root_hash);
+
+-- Trigger to append to root_history on ledger update
+CREATE OR REPLACE FUNCTION record_root_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only record if root hash changed
+    IF OLD.root_hash IS DISTINCT FROM NEW.root_hash THEN
+        INSERT INTO root_history (id, ledger_id, root_hash, entry_count, created_at)
+        VALUES (
+            'rh_' || EXTRACT(EPOCH FROM NOW())::BIGINT::TEXT || '_' || substring(md5(random()::text) from 1 for 8),
+            NEW.id,
+            NEW.root_hash,
+            NEW.entry_count,
+            NOW()
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER record_ledger_root_history
+AFTER UPDATE ON ledgers
+FOR EACH ROW EXECUTE FUNCTION record_root_history();
+
+-- Webhooks table
+CREATE TABLE webhooks (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    url TEXT NOT NULL,
+    secret VARCHAR(128),            -- HMAC secret for signature verification
+    events VARCHAR(64)[] NOT NULL,  -- Array of event types: 'root_change', 'entry_append', etc.
+    ledger_ids VARCHAR(64)[],       -- NULL = all ledgers, or array of specific ledger IDs
+    is_active BOOLEAN DEFAULT TRUE,
+    headers JSONB,                  -- Custom headers to include in webhook calls
+    retry_config JSONB,             -- Custom retry configuration
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_webhooks_user ON webhooks(user_id);
+CREATE INDEX idx_webhooks_active ON webhooks(is_active) WHERE is_active = TRUE;
+
+CREATE TRIGGER update_webhooks_updated_at
+BEFORE UPDATE ON webhooks
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Webhook delivery attempts
+CREATE TABLE webhook_deliveries (
+    id VARCHAR(64) PRIMARY KEY,
+    webhook_id VARCHAR(64) NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event_type VARCHAR(64) NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(32) NOT NULL,    -- 'pending', 'success', 'failed', 'retrying'
+    http_status INTEGER,
+    response_body TEXT,
+    attempt_count INTEGER DEFAULT 0,
+    next_retry_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id, created_at DESC);
+CREATE INDEX idx_webhook_deliveries_status ON webhook_deliveries(status) WHERE status IN ('pending', 'retrying');
+CREATE INDEX idx_webhook_deliveries_retry ON webhook_deliveries(next_retry_at) WHERE status = 'retrying';
+
+-- Cleanup function for old webhook deliveries
+CREATE OR REPLACE FUNCTION cleanup_webhook_deliveries()
+RETURNS void AS $$
+BEGIN
+    -- Keep deliveries for 30 days
+    DELETE FROM webhook_deliveries WHERE created_at < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;

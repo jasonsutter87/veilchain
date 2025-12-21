@@ -6,6 +6,7 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { Pool } from 'pg';
 import { MerkleTree } from '../../core/merkle.js';
 import type {
   PublicRootResponse,
@@ -20,7 +21,8 @@ import type {
  */
 export async function registerPublicRoutes(
   fastify: FastifyInstance,
-  service: LedgerService
+  service: LedgerService,
+  pool?: Pool
 ): Promise<void> {
   /**
    * Get current root hash (public, no authentication required)
@@ -160,10 +162,10 @@ export async function registerPublicRoutes(
     ) => {
       try {
         const { id } = request.params;
-        const limit = request.query.limit ? parseInt(request.query.limit, 10) : 100;
+        const limit = Math.min(request.query.limit ? parseInt(request.query.limit, 10) : 100, 1000);
         const offset = request.query.offset ? parseInt(request.query.offset, 10) : 0;
 
-        // Get current root (in a real implementation, this would query a historical roots table)
+        // Check if ledger exists first
         const rootData = await service.getCurrentRoot(id);
 
         if (!rootData) {
@@ -175,20 +177,51 @@ export async function registerPublicRoutes(
           });
         }
 
-        // For now, return only the current root
-        // TODO: Implement historical root storage and retrieval
-        const roots = [
-          {
-            rootHash: rootData.rootHash,
-            entryCount: rootData.entryCount.toString(),
-            timestamp: rootData.lastEntryAt?.toISOString() || new Date().toISOString()
-          }
-        ];
+        let roots: Array<{
+          rootHash: string;
+          entryCount: string;
+          timestamp: string;
+        }>;
+        let total: number;
+
+        // Query historical roots from database if pool is available
+        if (pool) {
+          const countResult = await pool.query(
+            'SELECT COUNT(*) FROM root_history WHERE ledger_id = $1',
+            [id]
+          );
+          total = parseInt(countResult.rows[0].count, 10);
+
+          const historyResult = await pool.query(
+            `SELECT root_hash, entry_count, created_at
+             FROM root_history
+             WHERE ledger_id = $1
+             ORDER BY created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [id, limit, offset]
+          );
+
+          roots = historyResult.rows.map(row => ({
+            rootHash: row.root_hash,
+            entryCount: row.entry_count.toString(),
+            timestamp: new Date(row.created_at).toISOString()
+          }));
+        } else {
+          // Fallback: return only current root if no pool
+          roots = [
+            {
+              rootHash: rootData.rootHash,
+              entryCount: rootData.entryCount.toString(),
+              timestamp: rootData.lastEntryAt?.toISOString() || new Date().toISOString()
+            }
+          ];
+          total = 1;
+        }
 
         const response: PublicRootsResponse = {
           ledgerId: id,
           roots,
-          total: roots.length,
+          total,
           offset,
           limit
         };
