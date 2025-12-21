@@ -230,3 +230,202 @@ export interface SparseMerkleTreeState {
   depth: number;
 }
 
+// ============================================
+// Phase 4: Authentication Types
+// ============================================
+
+/**
+ * User tier for rate limiting and features
+ */
+export type UserTier = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
+
+/**
+ * OAuth provider
+ */
+export type OAuthProvider = 'github' | 'google';
+
+/**
+ * User account
+ */
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  passwordHash?: string;
+  emailVerified: boolean;
+  emailVerificationToken?: string;
+  emailVerificationExpires?: Date;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
+  oauthProvider?: OAuthProvider;
+  oauthProviderId?: string;
+  avatarUrl?: string;
+  tier: UserTier;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLoginAt?: Date;
+}
+
+/**
+ * User without sensitive fields (for API responses)
+ */
+export interface UserPublic {
+  id: string;
+  email: string;
+  name?: string;
+  emailVerified: boolean;
+  avatarUrl?: string;
+  tier: UserTier;
+  createdAt: Date;
+  lastLoginAt?: Date;
+}
+
+/**
+ * API key type
+ */
+export type ApiKeyType = 'admin' | 'write' | 'read' | 'scoped';
+
+/**
+ * API key record
+ */
+export interface ApiKey {
+  id: string;
+  userId: string;
+  name: string;
+  keyPrefix: string;
+  keyHash: string;
+  keyType: ApiKeyType;
+  scopedLedgers?: string[];
+  permissions?: Record<string, unknown>;
+  expiresAt?: Date;
+  lastUsedAt?: Date;
+  usageCount: bigint;
+  rateLimitOverride?: Record<string, unknown>;
+  createdAt: Date;
+  revokedAt?: Date;
+  revokedReason?: string;
+}
+
+/**
+ * API key summary (without hash, for listing)
+ */
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  keyType: ApiKeyType;
+  scopedLedgers?: string[];
+  expiresAt?: Date;
+  lastUsedAt?: Date;
+  usageCount: bigint;
+  createdAt: Date;
+  revokedAt?: Date;
+}
+
+/**
+ * Refresh token record
+ */
+export interface RefreshToken {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  familyId: string;
+  expiresAt: Date;
+  issuedAt: Date;
+  revokedAt?: Date;
+  revokedReason?: string;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+/**
+ * Ledger permission role
+ */
+export type LedgerRole = 'owner' | 'admin' | 'write' | 'read';
+
+/**
+ * Ledger permission record
+ */
+export interface LedgerPermission {
+  id: string;
+  ledgerId: string;
+  userId: string;
+  role: LedgerRole;
+  grantedBy?: string;
+  grantedAt: Date;
+  expiresAt?: Date;
+}
+
+/**
+ * Audit log action types
+ */
+export type AuditAction =
+  | 'login'
+  | 'logout'
+  | 'register'
+  | 'password_change'
+  | 'password_reset'
+  | 'email_verify'
+  | 'create_ledger'
+  | 'delete_ledger'
+  | 'append_entry'
+  | 'create_api_key'
+  | 'revoke_api_key'
+  | 'grant_permission'
+  | 'revoke_permission';
+
+/**
+ * Audit log resource types
+ */
+export type AuditResourceType = 'user' | 'ledger' | 'entry' | 'api_key' | 'permission';
+
+/**
+ * Audit log record
+ */
+export interface AuditLog {
+  id: string;
+  userId?: string;
+  apiKeyId?: string;
+  action: AuditAction;
+  resourceType?: AuditResourceType;
+  resourceId?: string;
+  details?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: Date;
+}
+
+/**
+ * Token blocklist entry
+ */
+export interface TokenBlocklistEntry {
+  jti: string;
+  userId: string;
+  expiresAt: Date;
+  revokedAt: Date;
+  reason?: string;
+}
+
+/**
+ * OAuth state for CSRF protection
+ */
+export interface OAuthState {
+  state: string;
+  redirectUrl?: string;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+/**
+ * Authentication context attached to requests
+ */
+export interface AuthContext {
+  userId: string;
+  email: string;
+  tier: UserTier;
+  authMethod: 'jwt' | 'api_key';
+  apiKeyId?: string;
+  apiKeyType?: ApiKeyType;
+  jti?: string;
+}
+

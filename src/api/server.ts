@@ -16,12 +16,22 @@ import {
   PostgresIdempotencyStorage,
   MemoryIdempotencyStorage
 } from '../services/idempotency.js';
+import { UserService } from '../services/user.js';
+import { AuditService } from '../services/audit.js';
+import { AuthService } from '../services/auth.js';
+import { ApiKeyService } from '../services/apiKey.js';
+import { PermissionService } from '../services/permission.js';
 import { createAuthMiddleware } from './middleware/auth.js';
+import { createJwtMiddleware } from './middleware/jwt.js';
 import { registerRateLimit } from './middleware/rateLimit.js';
 import { registerLedgerRoutes } from './routes/ledgers.js';
 import { registerEntryRoutes } from './routes/entries.js';
 import { registerProofRoutes } from './routes/proofs.js';
 import { registerPublicRoutes } from './routes/public.js';
+import { registerAuthRoutes } from './routes/auth.js';
+import { registerApiKeyRoutes } from './routes/apiKeys.js';
+import { registerUserRoutes } from './routes/users.js';
+import { registerPermissionRoutes } from './routes/permissions.js';
 import { DEFAULT_VALIDATION_CONFIG, type ValidationConfig } from './middleware/validation.js';
 import { VERSION } from '../index.js';
 import type {
@@ -375,11 +385,80 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
 
   const service = new VeilChainService(storage, idempotencyService);
 
+  // Initialize auth services (only for PostgreSQL storage)
+  let userService: UserService | undefined;
+  let auditService: AuditService | undefined;
+  let authService: AuthService | undefined;
+  let apiKeyService: ApiKeyService | undefined;
+  let permissionService: PermissionService | undefined;
+
+  if (storageType === 'postgres' && pgStorage) {
+    userService = new UserService(pgStorage.pool);
+    auditService = new AuditService(pgStorage.pool);
+    apiKeyService = new ApiKeyService(pgStorage.pool, auditService);
+    permissionService = new PermissionService(pgStorage.pool, auditService);
+
+    // Only create AuthService if JWT keys are configured
+    if (process.env.JWT_PRIVATE_KEY && process.env.JWT_PUBLIC_KEY) {
+      authService = new AuthService(pgStorage.pool, userService, auditService, {
+        jwt: {
+          privateKey: process.env.JWT_PRIVATE_KEY,
+          publicKey: process.env.JWT_PUBLIC_KEY,
+          issuer: process.env.JWT_ISSUER || 'veilchain',
+          audience: process.env.JWT_AUDIENCE || 'veilchain-api',
+        },
+        bcryptCostFactor: parseInt(process.env.BCRYPT_COST_FACTOR || '12', 10),
+        baseUrl: process.env.BASE_URL || `http://localhost:${finalConfig.port}`,
+        oauth: {
+          github: process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+            ? {
+                clientId: process.env.GITHUB_CLIENT_ID,
+                clientSecret: process.env.GITHUB_CLIENT_SECRET,
+              }
+            : undefined,
+          google: process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+            ? {
+                clientId: process.env.GOOGLE_CLIENT_ID,
+                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+              }
+            : undefined,
+        },
+      });
+    }
+  }
+
   // Register public routes first (before authentication)
   await registerPublicRoutes(fastify, service);
 
-  // Register authentication (skips public routes and health check)
-  if (finalConfig.apiKey) {
+  // Register auth routes (before authentication middleware)
+  if (authService && userService) {
+    await registerAuthRoutes(fastify, authService, userService);
+  }
+
+  // Register authentication middleware
+  if (authService && apiKeyService) {
+    // Use JWT + API key authentication
+    fastify.addHook('onRequest', createJwtMiddleware({
+      authService,
+      apiKeyService,
+      skipRoutes: [
+        '/health',
+        '/v1/public/*',
+        '/v1/auth/register',
+        '/v1/auth/login',
+        '/v1/auth/refresh',
+        '/v1/auth/forgot-password',
+        '/v1/auth/reset-password',
+        '/v1/auth/verify-email',
+        '/v1/auth/github',
+        '/v1/auth/github/callback',
+        '/v1/auth/google',
+        '/v1/auth/google/callback',
+      ],
+      optional: false,
+    }));
+  } else if (finalConfig.apiKey) {
+    // Fallback to simple API key authentication
     fastify.addHook('onRequest', createAuthMiddleware({
       apiKey: finalConfig.apiKey,
       allowHealthCheck: true,
@@ -432,6 +511,19 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   await registerLedgerRoutes(fastify, service, validationConfig);
   await registerEntryRoutes(fastify, service, validationConfig);
   await registerProofRoutes(fastify, service);
+
+  // Register auth-related routes (only if auth services are available)
+  if (apiKeyService) {
+    await registerApiKeyRoutes(fastify, apiKeyService);
+  }
+
+  if (permissionService) {
+    await registerPermissionRoutes(fastify, permissionService);
+  }
+
+  if (userService && auditService && permissionService && pgStorage) {
+    await registerUserRoutes(fastify, userService, auditService, permissionService, pgStorage.pool);
+  }
 
   // 404 handler
   fastify.setNotFoundHandler((request, reply) => {
