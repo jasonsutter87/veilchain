@@ -353,7 +353,7 @@ export class RootPublisher {
    */
   private async publishToBitcoin(
     hash: string,
-    config?: Record<string, unknown>
+    _config?: Record<string, unknown>
   ): Promise<string | undefined> {
     // This would integrate with Bitcoin node/API
     // For now, just log and return undefined

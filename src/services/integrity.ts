@@ -10,7 +10,7 @@
 
 import { MerkleTree } from '../core/merkle.js';
 import { PostgresStorage } from '../storage/postgres.js';
-import type { IntegrityCheckResult, LedgerMetadata } from '../types.js';
+import type { IntegrityCheckResult } from '../types.js';
 import { GENESIS_HASH } from '../types.js';
 
 /**
@@ -236,7 +236,7 @@ export class IntegrityMonitor {
    */
   async verifyEntry(
     ledgerId: string,
-    entryHash: string,
+    _entryHash: string,
     parentHash: string,
     position: bigint
   ): Promise<{ valid: boolean; error?: string }> {

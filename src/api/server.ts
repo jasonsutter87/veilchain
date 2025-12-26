@@ -9,6 +9,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { MerkleTree } from '../core/merkle.js';
 import { hashEntry } from '../core/hash.js';
+import { GENESIS_HASH } from '../types.js';
 import { MemoryStorage } from '../storage/memory.js';
 import { PostgresStorage, createPostgresStorage } from '../storage/postgres.js';
 import {
@@ -172,17 +173,27 @@ class VeilChainService implements LedgerService {
 
     const previousRoot = tree.root;
 
-    // Create entry
+    // Create entry with cryptographic chaining
     const position = BigInt(tree.size);
     const hash = hashEntry(data, position);
     const id = `${ledgerId}-${position}`;
     const now = new Date();
+
+    // Get parent hash for chain linking
+    let parentHash: string;
+    if (position === 0n) {
+      parentHash = GENESIS_HASH;
+    } else {
+      const prevEntry = await this.storage.getByPosition(ledgerId, position - 1n);
+      parentHash = prevEntry?.hash ?? GENESIS_HASH;
+    }
 
     const entry: LedgerEntry<T> = {
       id,
       position,
       data,
       hash,
+      parentHash,
       createdAt: now
     };
 

@@ -28,7 +28,7 @@ export type SerializationFormat = 'json' | 'cbor';
  * - Consistent whitespace handling
  */
 export function canonicalJsonStringify(data: unknown): string {
-  return JSON.stringify(data, (key, value) => {
+  return JSON.stringify(data, (_key, value) => {
     // Handle BigInt
     if (typeof value === 'bigint') {
       return value.toString();
@@ -62,7 +62,7 @@ export function canonicalJsonStringify(data: unknown): string {
  * Parse canonical JSON
  */
 export function canonicalJsonParse<T = unknown>(json: string): T {
-  return JSON.parse(json, (key, value) => {
+  return JSON.parse(json, (_key, value) => {
     // Optionally restore BigInt from string
     // (caller must handle this explicitly if needed)
     return value;
