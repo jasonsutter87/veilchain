@@ -312,7 +312,7 @@ export class TieredStorage implements StorageBackend {
     if (isBlobReference(entry.data)) return false;
 
     // Store in blob
-    const blobMetadata = await this.blob.put(
+    await this.blob.put(
       ledgerId,
       entryId,
       entry.data,

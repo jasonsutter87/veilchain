@@ -8,7 +8,7 @@
  * - Rate limit counters
  */
 
-import Redis, { RedisOptions } from 'ioredis';
+import { Redis, RedisOptions } from 'ioredis';
 import type { LedgerMetadata, LedgerEntry, MerkleProof } from '../types.js';
 
 /**
@@ -112,7 +112,7 @@ export class RedisCache {
       console.log('Redis cache connected');
     });
 
-    this.client.on('error', (err) => {
+    this.client.on('error', (err: Error) => {
       console.error('Redis cache error:', err.message);
     });
 
