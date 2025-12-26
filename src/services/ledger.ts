@@ -19,6 +19,7 @@ import type {
   AppendResult,
   MerkleProof
 } from '../types.js';
+import { GENESIS_HASH } from '../types.js';
 
 /**
  * Events emitted by the ledger service
@@ -160,16 +161,31 @@ export class LedgerService {
       const previousRoot = tree.root;
       const position = metadata.entryCount;
 
+      // Get parent hash for cryptographic chaining
+      // For position 0 (first entry), use genesis hash
+      // Otherwise, get hash of previous entry
+      let parentHash: string;
+      if (position === 0n) {
+        parentHash = GENESIS_HASH;
+      } else {
+        const prevEntry = await this.storage.getByPosition(ledgerId, position - 1n);
+        if (!prevEntry) {
+          throw new Error(`Chain integrity error: previous entry at position ${position - 1n} not found`);
+        }
+        parentHash = prevEntry.hash;
+      }
+
       // Hash the entry data
       const hash = hashEntry(data, position);
       const entryId = hashToEntryId(hash);
 
-      // Create the entry
+      // Create the entry with cryptographic chaining
       const entry: LedgerEntry<T> = {
         id: entryId,
         position,
         data,
         hash,
+        parentHash,
         createdAt: new Date()
       };
 
