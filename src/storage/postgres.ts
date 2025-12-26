@@ -374,16 +374,20 @@ export class PostgresStorage implements StorageBackend {
   async listLedgers(options?: {
     offset?: number;
     limit?: number;
+    includeArchived?: boolean;
   }): Promise<LedgerMetadata[]> {
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? 100;
+    const includeArchived = options?.includeArchived ?? false;
 
     try {
+      const whereClause = includeArchived ? '' : 'WHERE l.archived_at IS NULL';
       const result: QueryResult = await this.pool.query(
         `SELECT l.id, l.name, l.description, l.root_hash, l.entry_count,
-                l.created_at, MAX(e.created_at) as last_entry_at
+                l.created_at, l.archived_at, MAX(e.created_at) as last_entry_at
          FROM ledgers l
          LEFT JOIN entries e ON l.id = e.ledger_id
+         ${whereClause}
          GROUP BY l.id
          ORDER BY l.created_at DESC
          OFFSET $1
@@ -399,9 +403,52 @@ export class PostgresStorage implements StorageBackend {
         entryCount: BigInt(row.entry_count),
         createdAt: new Date(row.created_at),
         lastEntryAt: row.last_entry_at ? new Date(row.last_entry_at) : undefined,
+        archivedAt: row.archived_at ? new Date(row.archived_at) : undefined,
       }));
     } catch (error) {
       throw new Error(`Failed to list ledgers: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Archive (soft delete) a ledger
+   *
+   * @param ledgerId - The ledger ID to archive
+   */
+  async archiveLedger(ledgerId: string): Promise<void> {
+    try {
+      const result = await this.pool.query(
+        `UPDATE ledgers SET archived_at = NOW(), updated_at = NOW()
+         WHERE id = $1 AND archived_at IS NULL`,
+        [ledgerId]
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error(`Ledger ${ledgerId} not found or already archived`);
+      }
+    } catch (error) {
+      throw new Error(`Failed to archive ledger: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Unarchive (restore) a ledger
+   *
+   * @param ledgerId - The ledger ID to unarchive
+   */
+  async unarchiveLedger(ledgerId: string): Promise<void> {
+    try {
+      const result = await this.pool.query(
+        `UPDATE ledgers SET archived_at = NULL, updated_at = NOW()
+         WHERE id = $1 AND archived_at IS NOT NULL`,
+        [ledgerId]
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error(`Ledger ${ledgerId} not found or not archived`);
+      }
+    } catch (error) {
+      throw new Error(`Failed to unarchive ledger: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

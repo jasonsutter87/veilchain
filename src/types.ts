@@ -150,6 +150,8 @@ export interface LedgerMetadata {
   lastEntryAt?: Date;
   /** Optional JSON schema for entry validation */
   schema?: Record<string, unknown>;
+  /** When the ledger was archived (soft deleted), null if active */
+  archivedAt?: Date;
 }
 
 /**
@@ -224,10 +226,17 @@ export interface StorageBackend {
   listLedgers(options?: {
     offset?: number;
     limit?: number;
+    includeArchived?: boolean;
   }): Promise<LedgerMetadata[]>;
 
   /** Get all leaf hashes for tree reconstruction */
   getAllLeafHashes(ledgerId: string): Promise<string[]>;
+
+  /** Archive (soft delete) a ledger */
+  archiveLedger?(ledgerId: string): Promise<void>;
+
+  /** Unarchive (restore) a ledger */
+  unarchiveLedger?(ledgerId: string): Promise<void>;
 }
 
 /**

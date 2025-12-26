@@ -315,6 +315,30 @@ class VeilChainService implements LedgerService {
   }
 
   /**
+   * Archive (soft delete) a ledger
+   */
+  async archiveLedger(ledgerId: string): Promise<void> {
+    if (this.storage.archiveLedger) {
+      await this.storage.archiveLedger(ledgerId);
+      // Remove from in-memory tree cache
+      this.trees.delete(ledgerId);
+    } else {
+      throw new Error('Archive not supported by storage backend');
+    }
+  }
+
+  /**
+   * Unarchive (restore) a ledger
+   */
+  async unarchiveLedger(ledgerId: string): Promise<void> {
+    if (this.storage.unarchiveLedger) {
+      await this.storage.unarchiveLedger(ledgerId);
+    } else {
+      throw new Error('Unarchive not supported by storage backend');
+    }
+  }
+
+  /**
    * Generate a unique ledger ID
    */
   private generateLedgerId(): string {

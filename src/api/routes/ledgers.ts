@@ -21,6 +21,14 @@ import {
 import { getAuthContext } from '../middleware/jwt.js';
 
 /**
+ * Extended ledger service with archive capabilities
+ */
+interface ExtendedLedgerService extends LedgerService {
+  archiveLedger?(ledgerId: string): Promise<void>;
+  unarchiveLedger?(ledgerId: string): Promise<void>;
+}
+
+/**
  * Register ledger routes
  */
 export async function registerLedgerRoutes(
@@ -309,6 +317,193 @@ export async function registerLedgerRoutes(
           error: {
             code: 'ROOT_RETRIEVAL_FAILED',
             message: error.message || 'Failed to retrieve root hash'
+          }
+        });
+      }
+    }
+  );
+
+  /**
+   * Archive (soft delete) a ledger
+   * DELETE /v1/ledgers/:id
+   */
+  fastify.delete<{
+    Params: { id: string };
+  }>(
+    '/v1/ledgers/:id',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              archivedAt: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+        const extService = service as ExtendedLedgerService;
+
+        // Check if service supports archiving
+        if (!extService.archiveLedger) {
+          return reply.code(501).send({
+            error: {
+              code: 'NOT_IMPLEMENTED',
+              message: 'Ledger archiving is not supported with the current storage backend'
+            }
+          });
+        }
+
+        // Check if ledger exists
+        const metadata = await service.getLedger(id);
+        if (!metadata) {
+          return reply.code(404).send({
+            error: {
+              code: 'LEDGER_NOT_FOUND',
+              message: `Ledger ${id} not found`
+            }
+          });
+        }
+
+        // Archive the ledger
+        await extService.archiveLedger(id);
+
+        // Audit log
+        if (auditService) {
+          const auth = getAuthContext(request);
+          await auditService.log({
+            userId: auth?.userId,
+            apiKeyId: auth?.apiKeyId,
+            action: 'delete_ledger',
+            resourceType: 'ledger',
+            resourceId: id,
+            details: { name: metadata.name },
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'],
+          });
+        }
+
+        return reply.send({
+          id,
+          archivedAt: new Date().toISOString(),
+          message: `Ledger ${id} has been archived`
+        });
+      } catch (error: any) {
+        fastify.log.error(error, 'Error archiving ledger');
+        return reply.code(500).send({
+          error: {
+            code: 'LEDGER_ARCHIVE_FAILED',
+            message: error.message || 'Failed to archive ledger'
+          }
+        });
+      }
+    }
+  );
+
+  /**
+   * Unarchive (restore) a ledger
+   * POST /v1/ledgers/:id/unarchive
+   */
+  fastify.post<{
+    Params: { id: string };
+  }>(
+    '/v1/ledgers/:id/unarchive',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+        const extService = service as ExtendedLedgerService;
+
+        // Check if service supports unarchiving
+        if (!extService.unarchiveLedger) {
+          return reply.code(501).send({
+            error: {
+              code: 'NOT_IMPLEMENTED',
+              message: 'Ledger unarchiving is not supported with the current storage backend'
+            }
+          });
+        }
+
+        // Unarchive the ledger
+        await extService.unarchiveLedger(id);
+
+        // Audit log
+        if (auditService) {
+          const auth = getAuthContext(request);
+          await auditService.log({
+            userId: auth?.userId,
+            apiKeyId: auth?.apiKeyId,
+            action: 'create_ledger', // Using create_ledger as there's no unarchive action type
+            resourceType: 'ledger',
+            resourceId: id,
+            details: { action: 'unarchive' },
+            ipAddress: request.ip,
+            userAgent: request.headers['user-agent'],
+          });
+        }
+
+        return reply.send({
+          id,
+          message: `Ledger ${id} has been restored`
+        });
+      } catch (error: any) {
+        fastify.log.error(error, 'Error unarchiving ledger');
+
+        // Check for specific error messages
+        if (error.message?.includes('not found')) {
+          return reply.code(404).send({
+            error: {
+              code: 'LEDGER_NOT_FOUND',
+              message: `Ledger ${request.params.id} not found`
+            }
+          });
+        }
+
+        if (error.message?.includes('not archived')) {
+          return reply.code(400).send({
+            error: {
+              code: 'LEDGER_NOT_ARCHIVED',
+              message: `Ledger ${request.params.id} is not archived`
+            }
+          });
+        }
+
+        return reply.code(500).send({
+          error: {
+            code: 'LEDGER_UNARCHIVE_FAILED',
+            message: error.message || 'Failed to unarchive ledger'
           }
         });
       }

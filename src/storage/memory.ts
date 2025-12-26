@@ -122,11 +122,42 @@ export class MemoryStorage implements StorageBackend {
   async listLedgers(options?: {
     offset?: number;
     limit?: number;
+    includeArchived?: boolean;
   }): Promise<LedgerMetadata[]> {
-    const { offset = 0, limit = 100 } = options ?? {};
+    const { offset = 0, limit = 100, includeArchived = false } = options ?? {};
     return Array.from(this.metadata.values())
+      .filter(m => includeArchived || !m.archivedAt)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(offset, offset + limit);
+  }
+
+  /**
+   * Archive (soft delete) a ledger
+   */
+  async archiveLedger(ledgerId: string): Promise<void> {
+    const metadata = this.metadata.get(ledgerId);
+    if (!metadata) {
+      throw new Error(`Ledger ${ledgerId} not found`);
+    }
+    if (metadata.archivedAt) {
+      throw new Error(`Ledger ${ledgerId} already archived`);
+    }
+    this.metadata.set(ledgerId, { ...metadata, archivedAt: new Date() });
+  }
+
+  /**
+   * Unarchive (restore) a ledger
+   */
+  async unarchiveLedger(ledgerId: string): Promise<void> {
+    const metadata = this.metadata.get(ledgerId);
+    if (!metadata) {
+      throw new Error(`Ledger ${ledgerId} not found`);
+    }
+    if (!metadata.archivedAt) {
+      throw new Error(`Ledger ${ledgerId} is not archived`);
+    }
+    const { archivedAt: _, ...rest } = metadata;
+    this.metadata.set(ledgerId, { ...rest, archivedAt: undefined });
   }
 
   /**
