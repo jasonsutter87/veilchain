@@ -9,11 +9,15 @@ CREATE TABLE ledgers (
     root_hash CHAR(64) NOT NULL,
     entry_count BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at TIMESTAMPTZ  -- NULL = active, set = archived (soft deleted)
 );
 
 -- Index for listing ledgers by creation date
 CREATE INDEX idx_ledgers_created_at ON ledgers(created_at DESC);
+
+-- Index for filtering active (non-archived) ledgers
+CREATE INDEX idx_ledgers_archived ON ledgers(archived_at) WHERE archived_at IS NULL;
 
 -- Entries table (append-only with cryptographic chaining)
 CREATE TABLE entries (
