@@ -26,6 +26,39 @@ export {
   formatProofForDisplay,
   createAnchorBundle
 } from './core/proof.js';
+export {
+  generateConsistencyProof,
+  verifyConsistencyProof,
+  verifyTreeConsistency,
+  describeConsistencyProof
+} from './core/consistency.js';
+export {
+  generateBatchProof,
+  verifyBatchProof,
+  getBatchProofStats
+} from './core/batch-proof.js';
+export {
+  canonicalJsonStringify,
+  canonicalJsonParse,
+  canonicalCborEncode,
+  canonicalCborDecode,
+  serialize,
+  deserialize,
+  hashCanonical,
+  serializeMerkleProof,
+  deserializeMerkleProof,
+  serializeBatchProof,
+  deserializeBatchProof,
+  serializeConsistencyProof,
+  deserializeConsistencyProof,
+  serializeSparseMerkleProof,
+  deserializeSparseMerkleProof,
+  createCompactProof,
+  parseCompactProof,
+  getProofSize,
+  compareSerializationSizes
+} from './core/serializer.js';
+export type { SerializationFormat, ProofSerializeOptions } from './core/serializer.js';
 
 // Storage exports
 export { MemoryStorage } from './storage/memory.js';
@@ -33,6 +66,24 @@ export { MemoryStorage } from './storage/memory.js';
 // Service exports
 export { LedgerService, IdempotencyService } from './services/index.js';
 export type { LedgerEvents, LedgerEventEmitter } from './services/index.js';
+export {
+  IntegrityMonitor,
+  createIntegrityMonitor
+} from './services/integrity.js';
+export type {
+  IntegrityAlert,
+  AlertSeverity,
+  IntegrityMonitorConfig
+} from './services/integrity.js';
+export {
+  RootPublisher,
+  createRootPublisher
+} from './services/rootPublisher.js';
+export type {
+  PublishedRoot,
+  PublisherTarget,
+  RootPublisherConfig
+} from './services/rootPublisher.js';
 
 // Type exports
 export type {
@@ -47,8 +98,12 @@ export type {
   MerkleNode,
   StorageBackend,
   SparseMerkleProof,
-  SparseMerkleTreeState
+  SparseMerkleTreeState,
+  BatchProof,
+  ConsistencyProof,
+  IntegrityCheckResult
 } from './types.js';
+export { GENESIS_HASH } from './types.js';
 
 // SDK exports
 export { VeilChainClient } from './sdk/client.js';
