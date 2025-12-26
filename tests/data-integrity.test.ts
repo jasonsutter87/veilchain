@@ -362,7 +362,7 @@ describe('Data Integrity Tests', () => {
       }
 
       const proof = tree.getProof(5)!;
-      const originalLeaf = proof.leaf;
+      const _originalLeaf = proof.leaf;
 
       // Modify leaf in proof
       proof.leaf = 'y'.repeat(64);

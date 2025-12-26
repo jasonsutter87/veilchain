@@ -296,7 +296,7 @@ describe('Integration Scenarios Tests', () => {
       }
 
       // Commitments are locked
-      const commitRoot = tree.root;
+      const _commitRoot = tree.root;
 
       // Later: verify revealed values match commitments
       for (let i = 0; i < 5; i++) {
