@@ -13,20 +13,24 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { EventEmitter } from 'events';
 import { LedgerService } from '../src/services/ledger.js';
-import { IdempotencyService } from '../src/services/idempotency.js';
+import { IdempotencyService, MemoryIdempotencyStorage } from '../src/services/idempotency.js';
 import { MemoryStorage } from '../src/storage/memory.js';
 import { MerkleTree } from '../src/core/merkle.js';
 import type { LedgerMetadata, LedgerEntry, MerkleProof } from '../src/types.js';
 
 describe('LedgerService', () => {
   let storage: MemoryStorage;
+  let idempotencyStorage: MemoryIdempotencyStorage;
+  let idempotencyService: IdempotencyService;
   let service: LedgerService;
   let events: EventEmitter;
 
   beforeEach(() => {
     storage = new MemoryStorage();
+    idempotencyStorage = new MemoryIdempotencyStorage();
+    idempotencyService = new IdempotencyService(idempotencyStorage);
     events = new EventEmitter();
-    service = new LedgerService(storage, { eventEmitter: events });
+    service = new LedgerService(storage, idempotencyService, { eventEmitter: events });
   });
 
   afterEach(() => {
@@ -420,7 +424,9 @@ describe('LedgerService', () => {
       await service.append(ledger.id, { value: 'test' });
 
       // Create new service instance (trees not in memory)
-      const newService = new LedgerService(storage);
+      const newIdempotencyStorage = new MemoryIdempotencyStorage();
+      const newIdempotencyService = new IdempotencyService(newIdempotencyStorage);
+      const newService = new LedgerService(storage, newIdempotencyService);
 
       // Getting proof should trigger reconstruction
       const proof = await newService.getProof(ledger.id, 0n);
@@ -499,10 +505,9 @@ describe('LedgerService', () => {
 
   describe('IdempotencyService Integration', () => {
     test('should use custom idempotency service', async () => {
-      const customIdempotency = new IdempotencyService(1000); // 1 second TTL
-      const customService = new LedgerService(storage, {
-        idempotencyService: customIdempotency
-      });
+      const customStorage = new MemoryIdempotencyStorage();
+      const customIdempotency = new IdempotencyService(customStorage, 1000); // 1 second TTL
+      const customService = new LedgerService(storage, customIdempotency);
 
       const ledger = await customService.createLedger({
         name: 'Custom Idempotency'
@@ -514,8 +519,9 @@ describe('LedgerService', () => {
         { idempotencyKey: 'custom-key' }
       );
 
-      const stats = customIdempotency.getStats();
-      expect(stats.activeKeys).toBe(1);
+      // Verify the key was stored
+      const cached = await customIdempotency.get(ledger.id, 'custom-key');
+      expect(cached).toBeDefined();
 
       customService.destroy();
       customIdempotency.destroy();
@@ -524,10 +530,12 @@ describe('LedgerService', () => {
 
   describe('Resource Cleanup', () => {
     test('should cleanup resources on destroy', () => {
-      const service = new LedgerService(storage);
+      const cleanupStorage = new MemoryIdempotencyStorage();
+      const cleanupIdempotency = new IdempotencyService(cleanupStorage);
+      const cleanupService = new LedgerService(storage, cleanupIdempotency);
 
       // Verify service can be destroyed without errors
-      expect(() => service.destroy()).not.toThrow();
+      expect(() => cleanupService.destroy()).not.toThrow();
     });
   });
 });
