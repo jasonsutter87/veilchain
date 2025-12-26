@@ -15,13 +15,14 @@ CREATE TABLE ledgers (
 -- Index for listing ledgers by creation date
 CREATE INDEX idx_ledgers_created_at ON ledgers(created_at DESC);
 
--- Entries table (append-only)
+-- Entries table (append-only with cryptographic chaining)
 CREATE TABLE entries (
     id VARCHAR(128) PRIMARY KEY,
     ledger_id VARCHAR(64) NOT NULL REFERENCES ledgers(id),
     position BIGINT NOT NULL,
     data JSONB NOT NULL,
     hash CHAR(64) NOT NULL,
+    parent_hash CHAR(64) NOT NULL,  -- Hash of previous entry (cryptographic chaining)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Ensure unique position per ledger
@@ -66,6 +67,110 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER enforce_append_only
 BEFORE UPDATE OR DELETE ON entries
 FOR EACH ROW EXECUTE FUNCTION prevent_entry_modification();
+
+-- Enforce sequential positions and cryptographic chain integrity
+CREATE OR REPLACE FUNCTION enforce_sequence_and_chain()
+RETURNS TRIGGER AS $$
+DECLARE
+    expected_position BIGINT;
+    previous_hash CHAR(64);
+    genesis_hash CONSTANT CHAR(64) := 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; -- SHA256('')
+BEGIN
+    -- Get the current max position for this ledger
+    SELECT COALESCE(MAX(position), -1) INTO expected_position
+    FROM entries
+    WHERE ledger_id = NEW.ledger_id;
+
+    -- New entry must be exactly one greater than max (or 0 for first entry)
+    IF NEW.position != expected_position + 1 THEN
+        RAISE EXCEPTION 'Sequence violation: expected position %, got %', expected_position + 1, NEW.position;
+    END IF;
+
+    -- Validate cryptographic chain
+    IF NEW.position = 0 THEN
+        -- First entry must have genesis hash as parent
+        IF NEW.parent_hash != genesis_hash THEN
+            RAISE EXCEPTION 'Genesis entry must have empty parent_hash (SHA256 of empty string)';
+        END IF;
+    ELSE
+        -- Get hash of previous entry
+        SELECT hash INTO previous_hash
+        FROM entries
+        WHERE ledger_id = NEW.ledger_id AND position = NEW.position - 1;
+
+        IF NEW.parent_hash != previous_hash THEN
+            RAISE EXCEPTION 'Chain integrity violation: parent_hash does not match previous entry hash';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER enforce_entry_sequence
+BEFORE INSERT ON entries
+FOR EACH ROW EXECUTE FUNCTION enforce_sequence_and_chain();
+
+-- Verify tree integrity (background check function)
+CREATE OR REPLACE FUNCTION verify_ledger_integrity(p_ledger_id VARCHAR(64))
+RETURNS TABLE(
+    is_valid BOOLEAN,
+    entry_count BIGINT,
+    chain_valid BOOLEAN,
+    sequence_valid BOOLEAN,
+    errors TEXT[]
+) AS $$
+DECLARE
+    v_entry_count BIGINT;
+    v_chain_valid BOOLEAN := TRUE;
+    v_sequence_valid BOOLEAN := TRUE;
+    v_errors TEXT[] := ARRAY[]::TEXT[];
+    v_prev_hash CHAR(64);
+    v_prev_position BIGINT := -1;
+    v_genesis_hash CONSTANT CHAR(64) := 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    r RECORD;
+BEGIN
+    -- Count entries
+    SELECT COUNT(*) INTO v_entry_count FROM entries WHERE ledger_id = p_ledger_id;
+
+    -- Verify chain and sequence
+    FOR r IN
+        SELECT position, hash, parent_hash
+        FROM entries
+        WHERE ledger_id = p_ledger_id
+        ORDER BY position ASC
+    LOOP
+        -- Check sequence
+        IF r.position != v_prev_position + 1 THEN
+            v_sequence_valid := FALSE;
+            v_errors := array_append(v_errors, format('Sequence gap at position %s (expected %s)', r.position, v_prev_position + 1));
+        END IF;
+
+        -- Check chain
+        IF r.position = 0 THEN
+            IF r.parent_hash != v_genesis_hash THEN
+                v_chain_valid := FALSE;
+                v_errors := array_append(v_errors, 'Genesis entry has invalid parent_hash');
+            END IF;
+        ELSE
+            IF r.parent_hash != v_prev_hash THEN
+                v_chain_valid := FALSE;
+                v_errors := array_append(v_errors, format('Chain break at position %s', r.position));
+            END IF;
+        END IF;
+
+        v_prev_position := r.position;
+        v_prev_hash := r.hash;
+    END LOOP;
+
+    RETURN QUERY SELECT
+        v_chain_valid AND v_sequence_valid,
+        v_entry_count,
+        v_chain_valid,
+        v_sequence_valid,
+        v_errors;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Auto-update timestamp on ledgers
 CREATE OR REPLACE FUNCTION update_updated_at()
