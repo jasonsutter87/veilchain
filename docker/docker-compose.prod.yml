@@ -19,6 +19,11 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://veilchain:${DB_PASSWORD}@postgres:5432/veilchain
       REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: veilchain
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-veilchain}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_FORCE_PATH_STYLE: "true"
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       API_KEY: ${API_KEY}
@@ -27,6 +32,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
@@ -145,6 +152,37 @@ services:
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
 
   # =============================================================
+  # MinIO Blob Storage (S3-compatible)
+  # =============================================================
+  minio:
+    image: minio/minio:latest
+    restart: always
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-veilchain}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    networks:
+      - veilchain-network
+
+  # =============================================================
   # Prometheus Monitoring
   # =============================================================
   prometheus:
@@ -248,6 +286,8 @@ volumes:
   postgres-data:
     driver: local
   redis-data:
+    driver: local
+  minio-data:
     driver: local
   prometheus-data:
     driver: local
