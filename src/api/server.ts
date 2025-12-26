@@ -35,8 +35,11 @@ import { registerUserRoutes } from './routes/users.js';
 import { registerPermissionRoutes } from './routes/permissions.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerAnchorRoutes } from './routes/anchors.js';
+import { registerWebSocketRoutes } from './routes/websocket.js';
 import { createWebhookService, type WebhookService } from '../services/webhook.js';
 import { createAnchorService, type AnchorService } from '../services/anchor.js';
+import { createWebSocketService, type WebSocketService } from '../services/websocket.js';
+import websocket from '@fastify/websocket';
 import { DEFAULT_VALIDATION_CONFIG, type ValidationConfig } from './middleware/validation.js';
 import { VERSION } from '../index.js';
 
@@ -391,6 +394,9 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     await fastify.register(cors, getCorsConfig());
   }
 
+  // Register WebSocket support
+  await fastify.register(websocket);
+
   // Apply security headers and validation
   await applySecurityConfig(fastify);
 
@@ -457,6 +463,8 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   let webhookService: WebhookService | undefined;
   // Phase 3: Anchors
   let anchorService: AnchorService | undefined;
+  // Phase 3: WebSocket
+  const wsService: WebSocketService = createWebSocketService();
 
   if (storageType === 'postgres' && pgStorage) {
     userService = new UserService(pgStorage.pool);
@@ -632,6 +640,10 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   if (anchorService) {
     await registerAnchorRoutes(fastify, anchorService, service, auditService);
   }
+
+  // Register WebSocket routes
+  await registerWebSocketRoutes(fastify, wsService);
+  fastify.decorate('wsService', wsService);
 
   // 404 handler
   fastify.setNotFoundHandler((request, reply) => {
