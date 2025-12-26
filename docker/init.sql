@@ -642,3 +642,64 @@ BEGIN
     DELETE FROM webhook_deliveries WHERE created_at < NOW() - INTERVAL '30 days';
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================
+-- VeilChain Phase 3: External Anchoring
+-- ============================================
+
+-- External anchors (timestamping to external chains/services)
+CREATE TABLE anchors (
+    id VARCHAR(64) PRIMARY KEY,
+    ledger_id VARCHAR(64) NOT NULL REFERENCES ledgers(id) ON DELETE CASCADE,
+    root_hash CHAR(64) NOT NULL,           -- Root hash being anchored
+    entry_count BIGINT NOT NULL,           -- Entry count at time of anchor
+    anchor_type VARCHAR(32) NOT NULL,      -- 'bitcoin', 'ethereum', 'rfc3161', 'opentimestamps'
+    status VARCHAR(32) NOT NULL DEFAULT 'pending',  -- 'pending', 'confirmed', 'failed'
+
+    -- External chain/service details
+    external_tx_id VARCHAR(128),           -- Transaction ID on external chain
+    external_block_height BIGINT,          -- Block height when confirmed
+    external_block_hash VARCHAR(128),      -- Block hash for verification
+    external_timestamp TIMESTAMPTZ,        -- Timestamp from external source
+
+    -- Proof data
+    proof_data JSONB,                      -- Merkle proof or inclusion proof from external chain
+
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    confirmed_at TIMESTAMPTZ,
+    error_message TEXT
+);
+
+CREATE INDEX idx_anchors_ledger ON anchors(ledger_id, created_at DESC);
+CREATE INDEX idx_anchors_status ON anchors(status) WHERE status = 'pending';
+CREATE INDEX idx_anchors_type ON anchors(anchor_type);
+CREATE INDEX idx_anchors_root_hash ON anchors(root_hash);
+
+-- Anchor configurations (per-user settings for automatic anchoring)
+CREATE TABLE anchor_configs (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    ledger_id VARCHAR(64) REFERENCES ledgers(id) ON DELETE CASCADE,  -- NULL = applies to all ledgers
+    anchor_type VARCHAR(32) NOT NULL,
+    is_enabled BOOLEAN DEFAULT TRUE,
+
+    -- Trigger conditions
+    trigger_on_entries INTEGER,            -- Anchor every N entries (e.g., every 100)
+    trigger_on_interval INTERVAL,          -- Anchor every interval (e.g., '1 hour')
+
+    -- External service credentials (encrypted)
+    credentials JSONB,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT unique_anchor_config UNIQUE (user_id, ledger_id, anchor_type)
+);
+
+CREATE INDEX idx_anchor_configs_user ON anchor_configs(user_id);
+CREATE INDEX idx_anchor_configs_ledger ON anchor_configs(ledger_id);
+
+CREATE TRIGGER update_anchor_configs_updated_at
+BEFORE UPDATE ON anchor_configs
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();

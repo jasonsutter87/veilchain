@@ -34,7 +34,9 @@ import { registerApiKeyRoutes } from './routes/apiKeys.js';
 import { registerUserRoutes } from './routes/users.js';
 import { registerPermissionRoutes } from './routes/permissions.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
+import { registerAnchorRoutes } from './routes/anchors.js';
 import { createWebhookService, type WebhookService } from '../services/webhook.js';
+import { createAnchorService, type AnchorService } from '../services/anchor.js';
 import { DEFAULT_VALIDATION_CONFIG, type ValidationConfig } from './middleware/validation.js';
 import { VERSION } from '../index.js';
 
@@ -453,6 +455,8 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   let ipReputationService: IpReputationService | undefined;
   // Phase 6: Webhooks
   let webhookService: WebhookService | undefined;
+  // Phase 3: Anchors
+  let anchorService: AnchorService | undefined;
 
   if (storageType === 'postgres' && pgStorage) {
     userService = new UserService(pgStorage.pool);
@@ -471,6 +475,10 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
     // Phase 6: Webhook service
     webhookService = createWebhookService(pgStorage.pool);
     fastify.decorate('webhookService', webhookService);
+
+    // Phase 3: Anchor service
+    anchorService = createAnchorService(pgStorage.pool);
+    fastify.decorate('anchorService', anchorService);
 
     // Register request logging with PII redaction
     registerRequestLogger(fastify, {
@@ -618,6 +626,11 @@ export async function createServer(config: Partial<ApiConfig> = {}): Promise<Fas
   // Register webhook routes (only if webhook service is available)
   if (webhookService) {
     await registerWebhookRoutes(fastify, webhookService);
+  }
+
+  // Register anchor routes (only if anchor service is available)
+  if (anchorService) {
+    await registerAnchorRoutes(fastify, anchorService, service, auditService);
   }
 
   // 404 handler
