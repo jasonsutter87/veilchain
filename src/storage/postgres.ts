@@ -78,11 +78,15 @@ export class PostgresStorage implements StorageBackend {
    * Store a new entry in the ledger
    *
    * This operation is atomic and uses a transaction to ensure:
-   * 1. Entry is inserted
+   * 1. Entry is inserted with cryptographic chaining
    * 2. Ledger metadata is updated
    *
+   * The database triggers will enforce:
+   * - Sequential position (must be exactly previous + 1)
+   * - Cryptographic chain integrity (parent_hash must match previous entry)
+   *
    * @param ledgerId - The ledger ID
-   * @param entry - The entry to store
+   * @param entry - The entry to store (must include parentHash)
    */
   async put(ledgerId: string, entry: LedgerEntry): Promise<void> {
     const client = await this.pool.connect();
@@ -90,16 +94,18 @@ export class PostgresStorage implements StorageBackend {
     try {
       await client.query('BEGIN');
 
-      // Insert the entry
+      // Insert the entry with cryptographic chaining
+      // Database trigger will validate sequence and chain integrity
       await client.query(
-        `INSERT INTO entries (id, ledger_id, position, data, hash, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO entries (id, ledger_id, position, data, hash, parent_hash, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           entry.id,
           ledgerId,
           entry.position.toString(),
           JSON.stringify(entry.data),
           entry.hash,
+          entry.parentHash,
           entry.createdAt,
         ]
       );
@@ -122,6 +128,15 @@ export class PostgresStorage implements StorageBackend {
         throw new Error(`Entry at position ${entry.position} already exists in ledger ${ledgerId}`);
       }
 
+      // Re-throw database trigger errors with context
+      if (error instanceof Error && error.message.includes('Sequence violation')) {
+        throw new Error(`Sequence violation in ledger ${ledgerId}: ${error.message}`);
+      }
+
+      if (error instanceof Error && error.message.includes('Chain integrity violation')) {
+        throw new Error(`Chain integrity violation in ledger ${ledgerId}: ${error.message}`);
+      }
+
       throw new Error(`Failed to store entry: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       client.release();
@@ -138,7 +153,7 @@ export class PostgresStorage implements StorageBackend {
   async get(ledgerId: string, entryId: string): Promise<LedgerEntry | null> {
     try {
       const result: QueryResult = await this.pool.query(
-        `SELECT id, ledger_id, position, data, hash, created_at
+        `SELECT id, ledger_id, position, data, hash, parent_hash, created_at
          FROM entries
          WHERE ledger_id = $1 AND id = $2`,
         [ledgerId, entryId]
@@ -164,7 +179,7 @@ export class PostgresStorage implements StorageBackend {
   async getByPosition(ledgerId: string, position: bigint): Promise<LedgerEntry | null> {
     try {
       const result: QueryResult = await this.pool.query(
-        `SELECT id, ledger_id, position, data, hash, created_at
+        `SELECT id, ledger_id, position, data, hash, parent_hash, created_at
          FROM entries
          WHERE ledger_id = $1 AND position = $2`,
         [ledgerId, position.toString()]
@@ -196,7 +211,7 @@ export class PostgresStorage implements StorageBackend {
 
     try {
       const result: QueryResult = await this.pool.query(
-        `SELECT id, ledger_id, position, data, hash, created_at
+        `SELECT id, ledger_id, position, data, hash, parent_hash, created_at
          FROM entries
          WHERE ledger_id = $1
          ORDER BY position ASC
@@ -427,8 +442,81 @@ export class PostgresStorage implements StorageBackend {
       position: BigInt(row.position),
       data: row.data,
       hash: row.hash,
+      parentHash: row.parent_hash,
       createdAt: new Date(row.created_at),
     };
+  }
+
+  /**
+   * Verify the integrity of a ledger's cryptographic chain
+   * Uses the database function for efficient verification
+   *
+   * @param ledgerId - The ledger ID to verify
+   * @returns Integrity check result
+   */
+  async verifyLedgerIntegrity(ledgerId: string): Promise<{
+    isValid: boolean;
+    entryCount: bigint;
+    chainValid: boolean;
+    sequenceValid: boolean;
+    errors: string[];
+  }> {
+    try {
+      const result = await this.pool.query(
+        `SELECT * FROM verify_ledger_integrity($1)`,
+        [ledgerId]
+      );
+
+      if (result.rows.length === 0) {
+        return {
+          isValid: true,
+          entryCount: BigInt(0),
+          chainValid: true,
+          sequenceValid: true,
+          errors: [],
+        };
+      }
+
+      const row = result.rows[0];
+      return {
+        isValid: row.is_valid,
+        entryCount: BigInt(row.entry_count),
+        chainValid: row.chain_valid,
+        sequenceValid: row.sequence_valid,
+        errors: row.errors || [],
+      };
+    } catch (error) {
+      throw new Error(`Failed to verify ledger integrity: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Get the hash of the last entry in a ledger
+   * Used for cryptographic chaining when appending new entries
+   *
+   * @param ledgerId - The ledger ID
+   * @returns The hash of the last entry, or GENESIS_HASH if empty
+   */
+  async getLastEntryHash(ledgerId: string): Promise<string> {
+    const GENESIS_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+    try {
+      const result = await this.pool.query(
+        `SELECT hash FROM entries
+         WHERE ledger_id = $1
+         ORDER BY position DESC
+         LIMIT 1`,
+        [ledgerId]
+      );
+
+      if (result.rows.length === 0) {
+        return GENESIS_HASH;
+      }
+
+      return result.rows[0].hash;
+    } catch (error) {
+      throw new Error(`Failed to get last entry hash: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
