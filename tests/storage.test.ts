@@ -5,6 +5,7 @@
 import { MemoryStorage } from '../src/storage/memory.js';
 import { sha256 } from '../src/core/hash.js';
 import type { LedgerEntry, LedgerMetadata } from '../src/types.js';
+import { GENESIS_HASH } from '../src/types.js';
 
 describe('MemoryStorage', () => {
   let storage: MemoryStorage;
@@ -88,6 +89,7 @@ describe('MemoryStorage', () => {
         position: 0n,
         data: { message: 'hello' },
         hash: sha256('hello'),
+        parentHash: GENESIS_HASH,
         createdAt: new Date()
       };
 
