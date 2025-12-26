@@ -96,10 +96,38 @@ export interface LedgerEntry<T = unknown> {
   data: T;
   /** SHA-256 hash of the entry */
   hash: string;
+  /** Hash of the previous entry (cryptographic chaining) */
+  parentHash: string;
   /** Timestamp when entry was added */
   createdAt: Date;
   /** Merkle proof of inclusion */
   proof?: MerkleProof;
+}
+
+/**
+ * Genesis hash constant - SHA256 of empty string
+ * Used as parent_hash for the first entry in a ledger
+ */
+export const GENESIS_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+/**
+ * Result of ledger integrity verification
+ */
+export interface IntegrityCheckResult {
+  /** Whether the ledger is valid */
+  isValid: boolean;
+  /** Total number of entries checked */
+  entryCount: bigint;
+  /** Whether the cryptographic chain is intact */
+  chainValid: boolean;
+  /** Whether sequence numbers are correct */
+  sequenceValid: boolean;
+  /** Whether Merkle tree root matches */
+  merkleValid: boolean;
+  /** List of any errors found */
+  errors: string[];
+  /** Timestamp of verification */
+  verifiedAt: Date;
 }
 
 /**
