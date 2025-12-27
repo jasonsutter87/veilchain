@@ -8,6 +8,7 @@
 
 // Core exports
 export { MerkleTree } from './core/merkle.js';
+export { FastMerkleTree } from './core/merkle-fast.js';
 export { SparseMerkleTree } from './core/sparse-merkle.js';
 export {
   sha256,
